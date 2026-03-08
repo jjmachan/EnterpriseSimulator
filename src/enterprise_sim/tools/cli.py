@@ -137,5 +137,29 @@ def agent_chat(agent_id, provider, model):
     subprocess.run(cmd)
 
 
+@cli.command("simulate")
+@click.option("--ticks", default=12, type=int, help="Number of simulation ticks")
+@click.option("--ticket-prob", default=0.15, type=float, help="Per-customer ticket probability per tick")
+@click.option("--provider", default="openai", help="LLM provider")
+@click.option("--model", default="gpt-5-mini", help="Model name")
+@click.option("--seed", default=None, type=int, help="Random seed for reproducibility")
+@click.option("--output", default=None, type=click.Path(), help="Output directory path")
+def simulate(ticks, ticket_prob, provider, model, seed, output):
+    """Run a multi-agent world simulation."""
+    from enterprise_sim.orchestrator.sim_config import WorldConfig
+    from enterprise_sim.orchestrator.simulation_engine import SimulationEngine
+
+    config = WorldConfig(
+        num_ticks=ticks,
+        ticket_probability=ticket_prob,
+        provider=provider,
+        model=model,
+        seed=seed,
+        output_dir=Path(output) if output else None,
+    )
+    engine = SimulationEngine(config)
+    engine.run()
+
+
 if __name__ == "__main__":
     cli()
