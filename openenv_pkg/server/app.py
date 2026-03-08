@@ -2,6 +2,7 @@
 
 from typing import Annotated, Any, Dict, Union
 
+from fastapi.responses import HTMLResponse
 from openenv.core.env_server.http_server import create_app
 from openenv.core.env_server.mcp_types import CallToolAction, ListToolsAction
 from pydantic import Field, TypeAdapter
@@ -25,6 +26,10 @@ class MCPAction:
     def model_validate(cls, data: Dict[str, Any]) -> Union[CallToolAction, ListToolsAction]:
         return _adapter.validate_python(data)
 
+    @classmethod
+    def model_json_schema(cls) -> Dict[str, Any]:
+        return CallToolAction.model_json_schema()
+
 # Create the app — passes the class (factory) for WebSocket session support
 app = create_app(
     CustomerSupportEnvironment,
@@ -32,6 +37,12 @@ app = create_app(
     SupportObservation,
     env_name="customer_support",
 )
+
+
+@app.get("/")
+async def root():
+    """Redirect root to web interface via client-side redirect (returns 200 for HF readiness probe)."""
+    return HTMLResponse('<html><head><meta http-equiv="refresh" content="0;url=/web"></head></html>')
 
 
 def main():

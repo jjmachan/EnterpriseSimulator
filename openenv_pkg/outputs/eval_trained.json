@@ -1,0 +1,184 @@
+{
+  "label": "grpo-trained",
+  "model": "Qwen/Qwen3-8B",
+  "adapter_path": "./outputs/grpo-support-agent/final_adapter",
+  "seed": 77,
+  "summary": {
+    "avg_episode_reward": 0.3888,
+    "resolution_rate": 0.25,
+    "avg_steps": 7.88,
+    "avg_format": -0.1445,
+    "avg_tool_valid": 0.2855,
+    "avg_reasoning": 0.1762,
+    "avg_no_leak": 0.0317
+  },
+  "tasks": [
+    {
+      "task_id": "task_001_order_tracking",
+      "steps": 10,
+      "episode_reward": 0.375,
+      "resolved": false,
+      "tools": [
+        "check_order",
+        "send_reply",
+        "send_reply",
+        "send_reply",
+        "send_reply",
+        "send_reply",
+        "send_reply",
+        "send_reply",
+        "send_reply",
+        "send_reply"
+      ],
+      "elapsed": 262.8,
+      "format": -0.675,
+      "tool_valid": 0.1,
+      "reasoning": -0.2,
+      "no_leak": 0.0
+    },
+    {
+      "task_id": "task_002_pending_order",
+      "steps": 7,
+      "episode_reward": 0.9700000000000001,
+      "resolved": true,
+      "tools": [
+        "send_reply",
+        "send_reply",
+        "check_order",
+        "check_order",
+        "send_reply",
+        "send_reply",
+        "send_reply"
+      ],
+      "elapsed": 164.7,
+      "format": 0.03571428571428571,
+      "tool_valid": 0.42857142857142855,
+      "reasoning": 0.2571428571428572,
+      "no_leak": 0.14285714285714285
+    },
+    {
+      "task_id": "task_003_vip_escalation",
+      "steps": 9,
+      "episode_reward": 0.09,
+      "resolved": false,
+      "tools": [
+        "lookup_customer",
+        "check_order",
+        "send_reply",
+        "update_ticket",
+        "send_reply",
+        "send_reply",
+        "send_reply",
+        "send_reply",
+        "send_reply"
+      ],
+      "elapsed": 182.6,
+      "format": 0.2222222222222222,
+      "tool_valid": 0.3333333333333333,
+      "reasoning": 0.6666666666666666,
+      "no_leak": 0.0
+    },
+    {
+      "task_id": "task_004_damaged_product",
+      "steps": 9,
+      "episode_reward": 0.7000000000000001,
+      "resolved": true,
+      "tools": [
+        "lookup_customer",
+        "send_reply",
+        "send_reply",
+        "send_reply",
+        "check_order",
+        "send_reply",
+        "update_ticket",
+        "request_escalation",
+        "send_reply"
+      ],
+      "elapsed": 129.2,
+      "format": 0.1111111111111111,
+      "tool_valid": 0.3888888888888889,
+      "reasoning": 0.022222222222222223,
+      "no_leak": 0.1111111111111111
+    },
+    {
+      "task_id": "task_005_shipping_anxiety",
+      "steps": 10,
+      "episode_reward": 0.375,
+      "resolved": false,
+      "tools": [
+        "send_reply",
+        "lookup_customer",
+        "check_order",
+        "send_reply",
+        "send_reply",
+        "update_ticket",
+        "send_reply",
+        "send_reply",
+        "send_reply",
+        "send_reply"
+      ],
+      "elapsed": 217.1,
+      "format": 0.1,
+      "tool_valid": 0.3,
+      "reasoning": 0.55,
+      "no_leak": 0.0
+    },
+    {
+      "task_id": "task_006_warranty_claim",
+      "steps": 6,
+      "episode_reward": 0.135,
+      "resolved": false,
+      "tools": [
+        "send_reply",
+        "send_reply",
+        "check_order",
+        "send_reply",
+        "update_ticket",
+        "send_reply"
+      ],
+      "elapsed": 118.6,
+      "format": -0.125,
+      "tool_valid": 0.3333333333333333,
+      "reasoning": 0.13333333333333333,
+      "no_leak": 0.0
+    },
+    {
+      "task_id": "task_007_repeat_customer",
+      "steps": 2,
+      "episode_reward": 0.15,
+      "resolved": false,
+      "tools": [
+        "send_reply",
+        "send_reply"
+      ],
+      "elapsed": 56.2,
+      "format": -1.0,
+      "tool_valid": 0.0,
+      "reasoning": -0.5,
+      "no_leak": 0.0
+    },
+    {
+      "task_id": "task_008_bulk_inquiry",
+      "steps": 10,
+      "episode_reward": 0.3149999999999999,
+      "resolved": false,
+      "tools": [
+        "send_reply",
+        "check_order",
+        "send_reply",
+        "send_reply",
+        "lookup_customer",
+        "check_order",
+        "send_reply",
+        "send_reply",
+        "update_ticket",
+        "send_reply"
+      ],
+      "elapsed": 222.8,
+      "format": 0.175,
+      "tool_valid": 0.4,
+      "reasoning": 0.48,
+      "no_leak": 0.0
+    }
+  ]
+}

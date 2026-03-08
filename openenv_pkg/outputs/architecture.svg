@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 950" width="1100" height="950">
+  <defs>
+    <marker id="arrow-4a90d9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4a90d9"/></marker>
+<marker id="arrow-e67e22" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#e67e22"/></marker>
+<marker id="arrow-2c3e50" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2c3e50"/></marker>
+<marker id="arrow-666666" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#666666"/></marker>
+    
+    <filter id="shadow" x="-5%" y="-5%" width="115%" height="115%">
+      <feDropShadow dx="2" dy="2" stdDeviation="4" flood-opacity="0.08"/>
+    </filter>
+    
+    <style>
+      text { font-family: Inter, -apple-system, Segoe UI, sans-serif; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1100" height="950" rx="16" fill="#f7f8fa" stroke="#dee2e6" stroke-width="2" opacity="1"/><text x="550.0" y="36" font-size="26" fill="#1a1a2e" font-weight="bold" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">EnterpriseSim  —  Architecture</text><text x="550.0" y="62" font-size="13" fill="#888" font-weight="normal" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">Multi-Agent Customer Support Simulation Environment</text><rect x="231.5" y="80" width="12" height="12" rx="3" fill="#e8f0fe" stroke="#4a90d9" stroke-width="1" opacity="1"/><text x="249.5" y="86" font-size="9" fill="#888" font-weight="normal" text-anchor="start" font-family="Inter, -apple-system, sans-serif" dy="0.35em">Inside (Company)</text><rect x="373.5" y="80" width="12" height="12" rx="3" fill="#fef5ec" stroke="#e67e22" stroke-width="1" opacity="1"/><text x="391.5" y="86" font-size="9" fill="#888" font-weight="normal" text-anchor="start" font-family="Inter, -apple-system, sans-serif" dy="0.35em">Outside (Customers)</text><rect x="536.5" y="80" width="12" height="12" rx="3" fill="#fffbeb" stroke="#d4a017" stroke-width="1" opacity="1"/><text x="554.5" y="86" font-size="9" fill="#888" font-weight="normal" text-anchor="start" font-family="Inter, -apple-system, sans-serif" dy="0.35em">Shared State (SQLite)</text><rect x="713.5" y="80" width="12" height="12" rx="3" fill="#eef7ee" stroke="#7bc67b" stroke-width="1" opacity="1"/><text x="731.5" y="86" font-size="9" fill="#888" font-weight="normal" text-anchor="start" font-family="Inter, -apple-system, sans-serif" dy="0.35em">pi-mono Runtime</text><rect x="53" y="115" width="1000" height="64" rx="10" fill="#00000015" stroke="none" stroke-width="1.5" opacity="1"/><rect x="50" y="112" width="1000" height="64" rx="10" fill="#2c3e50" stroke="#1a252f" stroke-width="1.5" opacity="1"/><text x="550.0" y="134" font-size="15" fill="white" font-weight="bold" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">Simulation Engine</text><text x="550.0" y="158" font-size="10" fill="#bdc3c7" font-weight="normal" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">Tick Processor (48 ticks x 5 min)  ·  Phase 1: Customers  &#x2192;  Phase 2: Routing  &#x2192;  Phase 3: Employees  &#x2192;  Phase 4: Managers</text><rect x="50" y="200" width="1000" height="270" rx="12" fill="#e8f0fe" stroke="#4a90d9" stroke-width="1.5" opacity="0.7"/><text x="68" y="220" font-size="13" fill="#2c5aa0" font-weight="bold" text-anchor="start" font-family="Inter, -apple-system, sans-serif" dy="0.35em">INSIDE  —  Company Employees</text><rect x="88.0" y="235" width="290" height="230" rx="10" fill="#00000010" stroke="none" stroke-width="1.5" opacity="1"/>
+<rect x="85.0" y="232" width="290" height="230" rx="10" fill="white" stroke="#d0d0d0" stroke-width="1.5" opacity="1"/>
+<rect x="91.0" y="238" width="278" height="32" rx="6" fill="#4a90d9" stroke="none" stroke-width="1.5" opacity="1"/>
+<text x="103.0" y="255" font-size="14" fill="white" opacity="0.9">&#x1F433;</text>
+<text x="236.0" y="254.0" font-size="11" fill="white" font-weight="bold" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">employee_support_01</text>
+<text x="230.0" y="280" font-size="11" fill="#666" font-weight="normal" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">Support Agent</text>
+<rect x="97.0" y="296" width="266" height="24" rx="5" fill="#eef7ee" stroke="#7bc67b" stroke-width="1" opacity="1"/>
+<text x="230.0" y="308" font-size="9.5" fill="#2a7d2a" font-weight="600" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">pi-mono agent  (Node.js)</text>
+<text x="103.0" y="334" font-size="10" fill="#444" font-weight="600" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">Tools:</text>
+<text x="103.0" y="351" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  lookup_customer</text>
+<text x="103.0" y="368" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  check_order</text>
+<text x="103.0" y="385" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  send_reply</text>
+<text x="103.0" y="402" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  update_ticket</text>
+<text x="103.0" y="419" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  request_escalation</text><rect x="408.0" y="235" width="290" height="230" rx="10" fill="#00000010" stroke="none" stroke-width="1.5" opacity="1"/>
+<rect x="405.0" y="232" width="290" height="230" rx="10" fill="white" stroke="#d0d0d0" stroke-width="1.5" opacity="1"/>
+<rect x="411.0" y="238" width="278" height="32" rx="6" fill="#4a90d9" stroke="none" stroke-width="1.5" opacity="1"/>
+<text x="423.0" y="255" font-size="14" fill="white" opacity="0.9">&#x1F433;</text>
+<text x="556.0" y="254.0" font-size="11" fill="white" font-weight="bold" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">employee_support_02</text>
+<text x="550.0" y="280" font-size="11" fill="#666" font-weight="normal" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">Support Agent</text>
+<rect x="417.0" y="296" width="266" height="24" rx="5" fill="#eef7ee" stroke="#7bc67b" stroke-width="1" opacity="1"/>
+<text x="550.0" y="308" font-size="9.5" fill="#2a7d2a" font-weight="600" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">pi-mono agent  (Node.js)</text>
+<text x="423.0" y="334" font-size="10" fill="#444" font-weight="600" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">Tools:</text>
+<text x="423.0" y="351" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  lookup_customer</text>
+<text x="423.0" y="368" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  check_order</text>
+<text x="423.0" y="385" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  send_reply</text>
+<text x="423.0" y="402" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  update_ticket</text><rect x="728.0" y="235" width="290" height="230" rx="10" fill="#00000010" stroke="none" stroke-width="1.5" opacity="1"/>
+<rect x="725.0" y="232" width="290" height="230" rx="10" fill="white" stroke="#d0d0d0" stroke-width="1.5" opacity="1"/>
+<rect x="731.0" y="238" width="278" height="32" rx="6" fill="#6c5ce7" stroke="none" stroke-width="1.5" opacity="1"/>
+<text x="743.0" y="255" font-size="14" fill="white" opacity="0.9">&#x1F433;</text>
+<text x="876.0" y="254.0" font-size="11" fill="white" font-weight="bold" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">employee_manager_01</text>
+<text x="870.0" y="280" font-size="11" fill="#666" font-weight="normal" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">Manager Agent</text>
+<rect x="737.0" y="296" width="266" height="24" rx="5" fill="#eef7ee" stroke="#7bc67b" stroke-width="1" opacity="1"/>
+<text x="870.0" y="308" font-size="9.5" fill="#2a7d2a" font-weight="600" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">pi-mono agent  (Node.js)</text>
+<text x="743.0" y="334" font-size="10" fill="#444" font-weight="600" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">Tools:</text>
+<text x="743.0" y="351" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  lookup_customer</text>
+<text x="743.0" y="368" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  check_order</text>
+<text x="743.0" y="385" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  send_reply</text>
+<text x="743.0" y="402" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  update_ticket</text>
+<text x="743.0" y="419" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  approve_refund</text><rect x="363.0" y="501" width="380" height="130" rx="10" fill="#00000012" stroke="none" stroke-width="1.5" opacity="1"/>
+<rect x="360.0" y="498" width="380" height="130" rx="10" fill="#fffbeb" stroke="#d4a017" stroke-width="2" opacity="1"/>
+<ellipse cx="550.0" cy="520" rx="182.0" ry="10" fill="#d4a017" opacity="0.15"/>
+<rect x="368.0" y="504" width="364" height="30" rx="6" fill="#d4a017" stroke="none" stroke-width="1.5" opacity="1"/>
+<text x="550.0" y="519" font-size="13" fill="white" font-weight="bold" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">world.db  (SQLite)</text>
+<rect x="376.0" y="548" width="119.0" height="20" rx="4" fill="#fef3c7" stroke="#d4a01740" stroke-width="0.8" opacity="1"/>
+<text x="435.5" y="558" font-size="8.5" fill="#7a6200" font-weight="normal" text-anchor="middle" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">customers (12)</text>
+<rect x="501.0" y="548" width="59.0" height="20" rx="4" fill="#fef3c7" stroke="#d4a01740" stroke-width="0.8" opacity="1"/>
+<text x="530.5" y="558" font-size="8.5" fill="#7a6200" font-weight="normal" text-anchor="middle" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">orders</text>
+<rect x="566.0" y="548" width="96.5" height="20" rx="4" fill="#fef3c7" stroke="#d4a01740" stroke-width="0.8" opacity="1"/>
+<text x="614.25" y="558" font-size="8.5" fill="#7a6200" font-weight="normal" text-anchor="middle" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">order_items</text>
+<rect x="376.0" y="574" width="74.0" height="20" rx="4" fill="#fef3c7" stroke="#d4a01740" stroke-width="0.8" opacity="1"/>
+<text x="413.0" y="584" font-size="8.5" fill="#7a6200" font-weight="normal" text-anchor="middle" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">products</text>
+<rect x="456.0" y="574" width="66.5" height="20" rx="4" fill="#fef3c7" stroke="#d4a01740" stroke-width="0.8" opacity="1"/>
+<text x="489.25" y="584" font-size="8.5" fill="#7a6200" font-weight="normal" text-anchor="middle" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">tickets</text>
+<rect x="528.5" y="574" width="126.5" height="20" rx="4" fill="#fef3c7" stroke="#d4a01740" stroke-width="0.8" opacity="1"/>
+<text x="591.75" y="584" font-size="8.5" fill="#7a6200" font-weight="normal" text-anchor="middle" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">ticket_messages</text>
+<rect x="376.0" y="600" width="119.0" height="20" rx="4" fill="#fef3c7" stroke="#d4a01740" stroke-width="0.8" opacity="1"/>
+<text x="435.5" y="610" font-size="8.5" fill="#7a6200" font-weight="normal" text-anchor="middle" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">knowledge_base</text>
+<rect x="501.0" y="600" width="104.0" height="20" rx="4" fill="#fef3c7" stroke="#d4a01740" stroke-width="0.8" opacity="1"/>
+<text x="553.0" y="610" font-size="8.5" fill="#7a6200" font-weight="normal" text-anchor="middle" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">transactions</text>
+<rect x="611.0" y="600" width="89.0" height="20" rx="4" fill="#fef3c7" stroke="#d4a01740" stroke-width="0.8" opacity="1"/>
+<text x="655.5" y="610" font-size="8.5" fill="#7a6200" font-weight="normal" text-anchor="middle" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">sim_traces</text><line x1="400.0" y1="176" x2="400.0" y2="200" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrow-2c3e50)"/><text x="415.0" y="188.0" font-size="9" fill="#2c3e50" font-weight="normal" text-anchor="start" font-family="Inter, -apple-system, sans-serif" dy="0.35em" font-style="italic">orchestrates</text><line x1="700.0" y1="176" x2="700.0" y2="200" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrow-2c3e50)"/><line x1="550.0" y1="470" x2="550.0" y2="498" stroke="#4a90d9" stroke-width="2" marker-end="url(#arrow-4a90d9)"/><text x="562.0" y="484.0" font-size="10" fill="#4a90d9" font-weight="normal" text-anchor="start" font-family="Inter, -apple-system, sans-serif" dy="0.35em" font-style="italic">SQL read / write</text><rect x="50" y="658" width="1000" height="260" rx="12" fill="#fef5ec" stroke="#e67e22" stroke-width="1.5" opacity="0.7"/><text x="68" y="678" font-size="13" fill="#c0612b" font-weight="bold" text-anchor="start" font-family="Inter, -apple-system, sans-serif" dy="0.35em">OUTSIDE  —  Customers</text><rect x="133.0" y="693" width="260" height="220" rx="10" fill="#00000010" stroke="none" stroke-width="1.5" opacity="1"/>
+<rect x="130.0" y="690" width="260" height="220" rx="10" fill="white" stroke="#d0d0d0" stroke-width="1.5" opacity="1"/>
+<rect x="136.0" y="696" width="248" height="32" rx="6" fill="#e67e22" stroke="none" stroke-width="1.5" opacity="1"/>
+<text x="148.0" y="713" font-size="14" fill="white" opacity="0.9">&#x1F433;</text>
+<text x="266.0" y="712.0" font-size="11" fill="white" font-weight="bold" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">customer_001</text>
+<text x="260.0" y="738" font-size="11" fill="#666" font-weight="normal" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">"Sarah Chen"</text>
+<rect x="142.0" y="754" width="236" height="24" rx="5" fill="#eef7ee" stroke="#7bc67b" stroke-width="1" opacity="1"/>
+<text x="260.0" y="766" font-size="9.5" fill="#2a7d2a" font-weight="600" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">pi-mono agent  (Node.js)</text>
+<text x="148.0" y="792" font-size="10" fill="#444" font-weight="600" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">persona.json:</text>
+<text x="148.0" y="809" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  patience: 0.7</text>
+<text x="148.0" y="826" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  style: formal</text>
+<text x="148.0" y="843" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  VIP: true</text>
+<text x="148.0" y="860" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  issue: order tracking</text><rect x="423.0" y="693" width="260" height="220" rx="10" fill="#00000010" stroke="none" stroke-width="1.5" opacity="1"/>
+<rect x="420.0" y="690" width="260" height="220" rx="10" fill="white" stroke="#d0d0d0" stroke-width="1.5" opacity="1"/>
+<rect x="426.0" y="696" width="248" height="32" rx="6" fill="#e67e22" stroke="none" stroke-width="1.5" opacity="1"/>
+<text x="438.0" y="713" font-size="14" fill="white" opacity="0.9">&#x1F433;</text>
+<text x="556.0" y="712.0" font-size="11" fill="white" font-weight="bold" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">customer_002</text>
+<text x="550.0" y="738" font-size="11" fill="#666" font-weight="normal" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">"Mike Johnson"</text>
+<rect x="432.0" y="754" width="236" height="24" rx="5" fill="#eef7ee" stroke="#7bc67b" stroke-width="1" opacity="1"/>
+<text x="550.0" y="766" font-size="9.5" fill="#2a7d2a" font-weight="600" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">pi-mono agent  (Node.js)</text>
+<text x="438.0" y="792" font-size="10" fill="#444" font-weight="600" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">persona.json:</text>
+<text x="438.0" y="809" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  patience: 0.5</text>
+<text x="438.0" y="826" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  style: casual</text>
+<text x="438.0" y="843" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  VIP: false</text>
+<text x="438.0" y="860" font-size="10" fill="#555" font-weight="normal" text-anchor="start" font-family="'SF Mono', 'Fira Code', monospace" dy="0.35em">  issue: damaged product</text><rect x="713.0" y="693" width="260" height="220" rx="10" fill="#00000010" stroke="none" stroke-width="1.5" opacity="1"/><rect x="710.0" y="690" width="260" height="220" rx="10" fill="white" stroke="#d0d0d0" stroke-width="1.5" opacity="1"/><rect x="716.0" y="696" width="248" height="32" rx="6" fill="#e67e22" stroke="none" stroke-width="1.5" opacity="1"/><text x="840.0" y="712" font-size="11" fill="white" font-weight="bold" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">... + 10 more</text><text x="840.0" y="770" font-size="13" fill="#555" font-weight="600" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">12 customers total</text><text x="840.0" y="798" font-size="11" fill="#888" font-weight="normal" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">Each with unique persona,</text><text x="840.0" y="818" font-size="11" fill="#888" font-weight="normal" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">order history, and</text><text x="840.0" y="838" font-size="11" fill="#888" font-weight="normal" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em">active support issues</text><line x1="550.0" y1="628" x2="550.0" y2="658" stroke="#e67e22" stroke-width="2" marker-end="url(#arrow-e67e22)"/><text x="562.0" y="643.0" font-size="10" fill="#e67e22" font-weight="normal" text-anchor="start" font-family="Inter, -apple-system, sans-serif" dy="0.35em" font-style="italic">SQL read (tickets)</text><text x="550.0" y="934" font-size="10" fill="#999" font-weight="normal" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" dy="0.35em" font-style="italic">Communication: ticket_messages table in world.db (async, tick-based)   ·   LLM Backend: OpenAI-compatible API (Qwen3-8B / gpt-4o-mini)</text>
+</svg>
