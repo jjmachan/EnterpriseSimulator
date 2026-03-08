@@ -288,6 +288,117 @@ def run_task(task_path, db, provider, model, judge_model, timeout):
         click.echo(f"FAILED: {trajectory['error']}")
 
 
+# --- analyze subgroup ---
+
+
+@cli.group()
+def analyze():
+    """Analyze world, task, and simulation quality."""
+    pass
+
+
+@analyze.command("world")
+@click.option("--db", required=True, type=click.Path(exists=True), help="Path to world.db")
+@click.option("--output", default=None, type=click.Path(), help="Save JSON report")
+def analyze_world(db, output):
+    """Entity statistics, coherence checks, and interconnectedness."""
+    from enterprise_sim.analyze import world, report
+
+    db_path = Path(db)
+    stats = world.entity_statistics(db_path)
+    coherence = world.coherence_checks(db_path)
+    inter = world.interconnectedness(db_path)
+
+    report.print_world_report(stats, coherence, inter)
+
+    if output:
+        _save_json({"world": stats, "coherence": coherence, "interconnectedness": inter}, output)
+
+
+@analyze.command("tasks")
+@click.option("--tasks-dir", required=True, type=click.Path(exists=True), help="Directory with task JSON files")
+@click.option("--output", default=None, type=click.Path(), help="Save JSON report")
+def analyze_tasks(tasks_dir, output):
+    """Task distribution, rubric coverage, complexity, and gaps."""
+    from enterprise_sim.analyze import tasks, report
+
+    tasks_path = Path(tasks_dir)
+    dist = tasks.task_distribution(tasks_path)
+    rubric = tasks.rubric_coverage(tasks_path)
+    complexity = tasks.task_complexity(tasks_path)
+    gaps = tasks.coverage_gaps(tasks_path)
+
+    report.print_tasks_report(dist, rubric, complexity, gaps)
+
+    if output:
+        _save_json({"distribution": dist, "rubric": rubric, "complexity": complexity, "gaps": gaps}, output)
+
+
+@analyze.command("sim")
+@click.option("--db", required=True, type=click.Path(exists=True), help="Path to simulation output world.db")
+@click.option("--output", default=None, type=click.Path(), help="Save JSON report")
+def analyze_sim(db, output):
+    """Simulation quality: tickets, agent behavior, conversations, resolution."""
+    from enterprise_sim.analyze import simulation, report
+
+    db_path = Path(db)
+    tickets = simulation.ticket_patterns(db_path)
+    behavior = simulation.agent_behavior(db_path)
+    convos = simulation.conversation_quality(db_path)
+    resolution = simulation.resolution_metrics(db_path)
+
+    report.print_simulation_report(tickets, behavior, convos, resolution)
+
+    if output:
+        _save_json({"tickets": tickets, "agent_behavior": behavior, "conversations": convos, "resolution": resolution}, output)
+
+
+@analyze.command("full")
+@click.option("--db", default=None, type=click.Path(exists=True), help="Path to world.db")
+@click.option("--tasks-dir", default=None, type=click.Path(exists=True), help="Directory with task JSON files")
+@click.option("--output", default=None, type=click.Path(), help="Save full JSON report")
+def analyze_full(db, tasks_dir, output):
+    """Run all analyses and produce a comprehensive report."""
+    from enterprise_sim.analyze import report as report_mod
+
+    db_path = Path(db) if db else None
+    tasks_path = Path(tasks_dir) if tasks_dir else None
+
+    if not db_path and not tasks_path:
+        click.echo("Error: provide at least --db or --tasks-dir")
+        raise SystemExit(1)
+
+    full_report = report_mod.generate_report(db_path, tasks_path)
+
+    # Print sections
+    if db_path:
+        report_mod.print_world_report(
+            full_report["world"], full_report["coherence"], full_report["interconnectedness"]
+        )
+        report_mod.print_simulation_report(
+            full_report["tickets"], full_report["agent_behavior"],
+            full_report["conversations"], full_report["resolution"]
+        )
+
+    if tasks_path:
+        report_mod.print_tasks_report(
+            full_report["task_distribution"], full_report["rubric_coverage"],
+            full_report["task_complexity"], full_report["coverage_gaps"]
+        )
+
+    if output:
+        _save_json(full_report, output)
+        click.echo(f"\nFull report saved to {output}")
+
+
+def _save_json(data: dict, path: str) -> None:
+    import json as _json
+    out = Path(path)
+    with open(out, "w") as f:
+        _json.dump(data, f, indent=2, default=str)
+    click.echo(f"JSON saved to {out}")
+
+
 @cli.command("simulate")
 @click.option("--ticks", default=12, type=int, help="Number of simulation ticks")
 @click.option("--ticket-prob", default=0.15, type=float, help="Per-customer ticket probability per tick")
@@ -314,6 +425,37 @@ def simulate(ticks, ticket_prob, provider, model, seed, output, max_customers, m
     )
     engine = SimulationEngine(config)
     engine.run()
+
+
+@cli.command("dashboard")
+@click.option("--db", default=None, type=click.Path(exists=True), help="Path to world.db to auto-load")
+@click.option("--port", default=5173, type=int, help="Dev server port")
+def dashboard(db, port):
+    """Launch the world visualization dashboard."""
+    dashboard_dir = Path(__file__).resolve().parent.parent.parent.parent / "dashboard"
+    if not (dashboard_dir / "package.json").exists():
+        click.echo(f"Dashboard not found at {dashboard_dir}. Run 'npm install' in the dashboard/ directory first.")
+        raise SystemExit(1)
+
+    import webbrowser
+
+    url = f"http://localhost:{port}"
+    if db:
+        db_path = Path(db).resolve()
+        # Compute relative path from project output/ dir
+        output_dir = dashboard_dir.parent / "output"
+        try:
+            rel = db_path.relative_to(output_dir)
+            url += f"/?db=/data/{rel}"
+        except ValueError:
+            click.echo(f"Warning: {db} is not under output/ — you'll need to drop the file manually.")
+
+    click.echo(f"Starting dashboard at {url}")
+    webbrowser.open(url)
+    subprocess.run(
+        ["npx", "vite", "--port", str(port)],
+        cwd=str(dashboard_dir),
+    )
 
 
 if __name__ == "__main__":

@@ -295,8 +295,12 @@ class TickProcessor:
         finally:
             conn.close()
 
-    def _get_actionable_tickets(self, conn, agent_id: str) -> list[dict]:
-        """Find tickets assigned to this agent where the last message is from a customer."""
+    def _get_actionable_tickets(self, conn, agent_id: str, max_per_tick: int = 3) -> list[dict]:
+        """Find tickets assigned to this agent where the last message is from a customer.
+
+        Caps at max_per_tick to keep LLM calls manageable — remaining tickets
+        will be picked up in subsequent ticks.
+        """
         tickets = conn.execute(
             """SELECT t.id, t.subject, t.status, t.customer_id
                FROM tickets t
@@ -325,6 +329,8 @@ class TickProcessor:
                     "last_message": last_msg["content"],
                     "message_count": msg_count,
                 })
+            if len(actionable) >= max_per_tick:
+                break
 
         return actionable
 

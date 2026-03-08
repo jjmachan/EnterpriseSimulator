@@ -89,7 +89,8 @@ class PiAgent:
         # Employee agents get shared dir + work_context mounts
         if self.agent_type == "employee":
             # In simulation mode, _sim_db_dir points to the output DB directory
-            db_dir = getattr(self, "_sim_db_dir", None) or SHARED_DIR.resolve()
+            db_dir = getattr(self, "_sim_db_dir", None) or SHARED_DIR
+            db_dir = Path(db_dir).resolve()
             work_context_dir = SHARED_DIR.resolve() / "work_context"
             cmd.extend([
                 "-v", f"{db_dir}:/shared",
@@ -173,10 +174,12 @@ class PiAgent:
 
         def _read_loop():
             all_text_parts = []
+            exit_reason = "unknown"
             try:
                 while True:
                     line = self._proc.stdout.readline()
                     if not line:
+                        exit_reason = "stdout_closed"
                         break
 
                     line = line.strip()
@@ -189,6 +192,10 @@ class PiAgent:
                         continue
 
                     event_type = event.get("type", "")
+
+                    if event_type == "agent_error":
+                        error_msg = event.get("error", event.get("message", "unknown error"))
+                        print(f"[Agent {self.agent_id}] agent_error event: {str(error_msg)[:200]}")
 
                     if event_type == "tool_execution_end":
                         # Intercept mark_resolved tool calls
@@ -206,10 +213,34 @@ class PiAgent:
                             if block.get("type") == "text":
                                 all_text_parts.append(block.get("text", ""))
                     elif event_type == "agent_end":
+                        exit_reason = "agent_end"
                         break
-            except Exception:
-                pass
+            except Exception as e:
+                exit_reason = f"exception: {e}"
+                print(f"[Agent {self.agent_id}] _read_loop exception: {e}")
             result_queue.put("\n".join(all_text_parts))
+
+            # Debug: log empty responses with exit reason
+            if not all_text_parts:
+                stderr_snippet = ""
+                try:
+                    if self._proc and self._proc.stderr:
+                        import select
+                        # Non-blocking stderr read
+                        import os
+                        fd = self._proc.stderr.fileno()
+                        os.set_blocking(fd, False)
+                        try:
+                            stderr_snippet = self._proc.stderr.read(2000) or ""
+                        except (BlockingIOError, OSError):
+                            pass
+                        finally:
+                            os.set_blocking(fd, True)
+                except Exception:
+                    pass
+                print(f"[Agent {self.agent_id}] EMPTY response | exit_reason={exit_reason} | "
+                      f"process_alive={self._proc and self._proc.poll() is None} | "
+                      f"stderr={stderr_snippet[:500]}")
 
         reader = threading.Thread(target=_read_loop, daemon=True)
         reader.start()

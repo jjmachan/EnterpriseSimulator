@@ -75,7 +75,7 @@ def run_task(
     agent.timeout = timeout
 
     # Override the sim DB directory so the container mounts the task snapshot
-    agent._sim_db_dir = run_dir
+    agent._sim_db_dir = Path(run_dir).resolve()
 
     result = {
         "task_id": task.id,
