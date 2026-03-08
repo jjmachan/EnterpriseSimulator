@@ -395,7 +395,7 @@ export function getTicketDetail(db: Database, id: number): TicketDetail | null {
   const ticket = queryOne(db, 'SELECT * FROM tickets WHERE id = ?', [id]);
   if (!ticket) return null;
 
-  const messages = queryRows(db, 'SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY timestamp', [id]) as unknown as TicketDetail['messages'];
+  const messages = queryRows(db, 'SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY id ASC', [id]) as unknown as TicketDetail['messages'];
   const customer = queryOne(db, 'SELECT name FROM customers WHERE id = ?', [ticket.customer_id as string]);
 
   return { ticket, messages, customerName: (customer?.name as string) || 'Unknown' };
