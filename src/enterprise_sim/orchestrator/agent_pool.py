@@ -52,6 +52,7 @@ class AgentPool:
             )
             # Override the shared dir mount to point at the simulation's output DB directory
             agent._sim_db_dir = self.db_path.parent
+            agent.timeout = self.config.agent_timeout_seconds
 
             if agent_type == "customer":
                 self.customers[agent_id] = agent

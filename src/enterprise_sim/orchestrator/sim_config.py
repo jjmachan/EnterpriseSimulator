@@ -17,6 +17,7 @@ class WorldConfig:
     model: str = "gpt-5-mini"
     seed: int | None = None
     output_dir: Path | None = None
+    agent_timeout_seconds: int = 120
 
 
 @dataclass

@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import queue
 import re
 import subprocess
+import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -53,6 +56,7 @@ class PiAgent:
 
         self._proc: subprocess.Popen | None = None
         self._is_resolved = False
+        self.timeout: int = 120  # seconds; overridden by WorldConfig via AgentPool
 
         # Detect agent type and load config file
         role_path = agent_dir / "role.json"
@@ -151,6 +155,9 @@ class PiAgent:
         - Receive: stream of events including turn_end, tool_execution_*, agent_end
         - Tool calls are reported via tool_execution_start/end events (not in turn_end content)
         - turn_end.message.content has text blocks (and thinking blocks)
+
+        Uses a threaded reader with timeout to prevent indefinite hangs
+        when the LLM API is unavailable or the model name is invalid.
         """
         if not self._proc or self._proc.poll() is not None:
             raise RuntimeError("pi-mono process is not running")
@@ -159,38 +166,61 @@ class PiAgent:
         self._proc.stdin.write(cmd)
         self._proc.stdin.flush()
 
-        all_text_parts = []
-        while True:
-            line = self._proc.stdout.readline()
-            if not line:
-                break
+        result_queue: queue.Queue[str] = queue.Queue()
 
-            line = line.strip()
-            if not line:
-                continue
-
+        def _read_loop():
+            all_text_parts = []
             try:
-                event = json.loads(line)
-            except json.JSONDecodeError:
-                continue
+                while True:
+                    line = self._proc.stdout.readline()
+                    if not line:
+                        break
 
-            event_type = event.get("type", "")
+                    line = line.strip()
+                    if not line:
+                        continue
 
-            if event_type == "tool_execution_end":
-                # Intercept mark_resolved tool calls
-                if event.get("toolName") == "mark_resolved" and not event.get("isError"):
-                    self._is_resolved = True
-            elif event_type == "turn_end":
-                # Accumulate text from all turn_end events
-                message = event.get("message", {})
-                content_blocks = message.get("content", [])
-                for block in content_blocks:
-                    if block.get("type") == "text":
-                        all_text_parts.append(block.get("text", ""))
-            elif event_type == "agent_end":
-                break
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
 
-        return "\n".join(all_text_parts)
+                    event_type = event.get("type", "")
+
+                    if event_type == "tool_execution_end":
+                        # Intercept mark_resolved tool calls
+                        if event.get("toolName") == "mark_resolved" and not event.get("isError"):
+                            self._is_resolved = True
+                    elif event_type == "turn_end":
+                        # Accumulate text from all turn_end events
+                        message = event.get("message", {})
+                        content_blocks = message.get("content", [])
+                        for block in content_blocks:
+                            if block.get("type") == "text":
+                                all_text_parts.append(block.get("text", ""))
+                    elif event_type == "agent_end":
+                        break
+            except Exception:
+                pass
+            result_queue.put("\n".join(all_text_parts))
+
+        reader = threading.Thread(target=_read_loop, daemon=True)
+        reader.start()
+        reader.join(timeout=self.timeout)
+
+        if reader.is_alive():
+            # Timed out — capture stderr for debugging, kill process
+            stderr_output = ""
+            try:
+                self._proc.kill()
+                _, stderr_output = self._proc.communicate(timeout=5)
+            except Exception:
+                pass
+            self._proc = None
+            print(f"[Agent {self.agent_id}] TIMEOUT after {self.timeout}s. stderr: {stderr_output[:500]}")
+            raise TimeoutError(f"Agent {self.agent_id} timed out after {self.timeout}s")
+
+        return result_queue.get_nowait()
 
     def respond(self, tool_name: str, tool_args: dict) -> ScenarioResponse:
         """Generate a customer response to a support agent action."""
@@ -241,6 +271,16 @@ class PiAgent:
             satisfaction_delta=base_delta + DELTAS["wrong_tool"],
             is_resolved=False,
         )
+
+    def is_alive(self) -> bool:
+        """Check if the pi-mono process is still running."""
+        return self._proc is not None and self._proc.poll() is None
+
+    def respawn(self) -> None:
+        """Shutdown and restart the pi-mono container."""
+        print(f"[Agent {self.agent_id}] Respawning...")
+        self.shutdown()
+        self.spawn()
 
     def shutdown(self) -> None:
         """Terminate the pi-mono process."""

@@ -3,24 +3,32 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from pathlib import Path
 from random import Random
 
 from enterprise_sim.orchestrator.agent_pool import AgentPool
 from enterprise_sim.orchestrator.sim_config import TickSummary, WorldConfig
 from enterprise_sim.orchestrator.world_db import get_connection
 
-from pathlib import Path
-
 
 class TickProcessor:
-    """Processes one simulation tick across all 4 phases."""
+    """Processes one simulation tick across all 4 phases.
+
+    Phases 1 (customer) and 3 (employee) run agent LLM calls in parallel
+    using ThreadPoolExecutor. DB writes are done sequentially in the main
+    thread after all LLM calls complete (for customer phase) or handled
+    by the agents themselves via CLI tools inside Docker (for employee phase,
+    with busy_timeout handling lock contention).
+    """
 
     def __init__(self, pool: AgentPool, db_path: Path, config: WorldConfig, rng: Random):
         self.pool = pool
         self.db_path = db_path
         self.config = config
         self.rng = rng
+        self.max_workers = max(1, min(4, len(pool.customers) + len(pool.employees)))
 
     def process(self, tick: int, sim_time: datetime) -> TickSummary:
         summary = TickSummary(tick=tick, sim_time=sim_time.strftime("%I:%M %p"))
@@ -40,106 +48,131 @@ class TickProcessor:
         return summary
 
     # ------------------------------------------------------------------
-    # Phase 1: Customer phase
+    # Phase 1: Customer phase (parallel LLM calls, sequential DB writes)
     # ------------------------------------------------------------------
 
     def _customer_phase(self, tick: int, sim_time: datetime, summary: TickSummary) -> None:
         conn = get_connection(self.db_path)
         try:
-            for agent_id, agent in self.pool.customers.items():
-                # Sub-phase A: respond to any unread agent replies
-                self._customer_respond_to_agent(conn, agent_id, agent, tick, sim_time, summary)
+            # --- Gather work items from DB ---
+            respond_work = []  # (agent_id, agent, ticket_id, agent_message)
+            file_work = []     # (agent_id, agent)
 
-                # Sub-phase B: maybe file a new ticket
-                self._customer_maybe_file_ticket(conn, agent_id, agent, tick, sim_time, summary)
+            for agent_id, agent in self.pool.customers.items():
+                # Check for tickets needing customer response
+                tickets = conn.execute(
+                    "SELECT id FROM tickets WHERE customer_id = ? AND status IN ('open', 'in_progress')",
+                    (agent_id,),
+                ).fetchall()
+                for ticket_row in tickets:
+                    tid = ticket_row["id"]
+                    last_msg = conn.execute(
+                        "SELECT sender_role, content FROM ticket_messages WHERE ticket_id = ? ORDER BY id DESC LIMIT 1",
+                        (tid,),
+                    ).fetchone()
+                    if last_msg and last_msg["sender_role"] == "agent":
+                        respond_work.append((agent_id, agent, tid, last_msg["content"]))
+
+                # Check if customer might file a new ticket
+                open_count = conn.execute(
+                    "SELECT COUNT(*) FROM tickets WHERE customer_id = ? AND status IN ('open', 'in_progress', 'escalated')",
+                    (agent_id,),
+                ).fetchone()[0]
+                if open_count == 0 and self.rng.random() <= self.config.ticket_probability:
+                    file_work.append((agent_id, agent))
+
+            # --- Parallel LLM calls for customer responses ---
+            respond_results = []
+            if respond_work:
+                with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                    futures = {}
+                    for agent_id, agent, tid, msg in respond_work:
+                        def _do_respond(a=agent, m=msg):
+                            return a.respond("send_reply", {"message": m})
+                        futures[executor.submit(_do_respond)] = (agent_id, tid)
+
+                    for future in as_completed(futures):
+                        agent_id, tid = futures[future]
+                        try:
+                            response = future.result()
+                            respond_results.append((agent_id, tid, response))
+                        except Exception as e:
+                            print(f"[Tick {tick}] Customer {agent_id} respond error: {e}")
+                            _log_event(conn, tick, "agent_error", agent_id, {"error": str(e), "phase": "customer_respond"})
+                            conn.commit()
+                            try:
+                                self.pool.customers[agent_id].respawn()
+                            except Exception:
+                                pass
+
+            # --- Write response results to DB sequentially ---
+            for agent_id, tid, response in respond_results:
+                if response.customer_message:
+                    conn.execute(
+                        "INSERT INTO ticket_messages (ticket_id, sender_id, sender_role, content, timestamp) VALUES (?, ?, 'customer', ?, ?)",
+                        (tid, agent_id, response.customer_message, sim_time.isoformat()),
+                    )
+                    summary.customer_responses.append(tid)
+                    _log_event(conn, tick, "customer_responded", agent_id, {"ticket_id": tid})
+                if response.is_resolved:
+                    conn.execute(
+                        "UPDATE tickets SET status = 'resolved', resolved_at = ? WHERE id = ?",
+                        (sim_time.isoformat(), tid),
+                    )
+                    summary.resolved_tickets.append(tid)
+                    _log_event(conn, tick, "ticket_resolved", agent_id, {"ticket_id": tid})
+                conn.commit()
+
+            # --- Parallel LLM calls for new ticket filing ---
+            file_results = []
+            if file_work:
+                with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                    futures = {}
+                    for agent_id, agent in file_work:
+                        def _do_file(a=agent):
+                            raw = a.send_message(
+                                "You're contacting customer support now. Describe your issue "
+                                "as you would in a real support chat. Be natural and in character."
+                            )
+                            parsed = a._parse_response(raw)
+                            return parsed.customer_message or raw.strip()
+                        futures[executor.submit(_do_file)] = (agent_id,)
+
+                    for future in as_completed(futures):
+                        (agent_id,) = futures[future]
+                        try:
+                            message = future.result()
+                            if message:
+                                file_results.append((agent_id, message))
+                        except Exception as e:
+                            print(f"[Tick {tick}] Customer {agent_id} file-ticket error: {e}")
+                            _log_event(conn, tick, "agent_error", agent_id, {"error": str(e), "phase": "customer_file"})
+                            conn.commit()
+                            try:
+                                self.pool.customers[agent_id].respawn()
+                            except Exception:
+                                pass
+
+            # --- Write new tickets to DB sequentially ---
+            for agent_id, message in file_results:
+                cursor = conn.execute(
+                    "INSERT INTO tickets (customer_id, subject, status, priority, created_at) VALUES (?, ?, 'open', 'normal', ?)",
+                    (agent_id, _extract_subject(message), sim_time.isoformat()),
+                )
+                tid = cursor.lastrowid
+                conn.execute(
+                    "INSERT INTO ticket_messages (ticket_id, sender_id, sender_role, content, timestamp) VALUES (?, ?, 'customer', ?, ?)",
+                    (tid, agent_id, message, sim_time.isoformat()),
+                )
+                conn.commit()
+                summary.new_tickets.append(tid)
+                _log_event(conn, tick, "ticket_created", agent_id, {"ticket_id": tid, "subject": _extract_subject(message)})
+
         finally:
             conn.close()
 
-    def _customer_respond_to_agent(self, conn, agent_id, agent, tick, sim_time, summary):
-        """If there's an agent reply the customer hasn't responded to, generate response."""
-        # Find active tickets for this customer
-        tickets = conn.execute(
-            "SELECT id FROM tickets WHERE customer_id = ? AND status IN ('open', 'in_progress')",
-            (agent_id,),
-        ).fetchall()
-
-        for ticket_row in tickets:
-            ticket_id = ticket_row["id"]
-
-            # Get the last message on this ticket
-            last_msg = conn.execute(
-                "SELECT sender_role, content FROM ticket_messages WHERE ticket_id = ? ORDER BY id DESC LIMIT 1",
-                (ticket_id,),
-            ).fetchone()
-
-            if not last_msg or last_msg["sender_role"] != "agent":
-                continue
-
-            # Agent replied, customer hasn't responded yet — generate response
-            response = agent.respond("send_reply", {"message": last_msg["content"]})
-
-            if response.customer_message:
-                conn.execute(
-                    "INSERT INTO ticket_messages (ticket_id, sender_id, sender_role, content, timestamp) VALUES (?, ?, 'customer', ?, ?)",
-                    (ticket_id, agent_id, response.customer_message, sim_time.isoformat()),
-                )
-                summary.customer_responses.append(ticket_id)
-                _log_event(conn, tick, "customer_responded", agent_id, {"ticket_id": ticket_id})
-
-            if response.is_resolved:
-                conn.execute(
-                    "UPDATE tickets SET status = 'resolved', resolved_at = ? WHERE id = ?",
-                    (sim_time.isoformat(), ticket_id),
-                )
-                summary.resolved_tickets.append(ticket_id)
-                _log_event(conn, tick, "ticket_resolved", agent_id, {"ticket_id": ticket_id})
-
-            conn.commit()
-
-    def _customer_maybe_file_ticket(self, conn, agent_id, agent, tick, sim_time, summary):
-        """Roll dice to see if customer files a new ticket."""
-        # Skip if customer already has an active ticket
-        open_count = conn.execute(
-            "SELECT COUNT(*) FROM tickets WHERE customer_id = ? AND status IN ('open', 'in_progress', 'escalated')",
-            (agent_id,),
-        ).fetchone()[0]
-        if open_count > 0:
-            return
-
-        # Roll dice
-        if self.rng.random() > self.config.ticket_probability:
-            return
-
-        # Ask customer to generate their complaint
-        raw = agent.send_message(
-            "You're contacting customer support now. Describe your issue "
-            "as you would in a real support chat. Be natural and in character."
-        )
-        # Parse out the satisfaction tag, get clean message
-        parsed = agent._parse_response(raw)
-        message = parsed.customer_message or raw.strip()
-
-        if not message:
-            return
-
-        # Create ticket
-        cursor = conn.execute(
-            "INSERT INTO tickets (customer_id, subject, status, priority, created_at) VALUES (?, ?, 'open', 'normal', ?)",
-            (agent_id, _extract_subject(message), sim_time.isoformat()),
-        )
-        ticket_id = cursor.lastrowid
-
-        conn.execute(
-            "INSERT INTO ticket_messages (ticket_id, sender_id, sender_role, content, timestamp) VALUES (?, ?, 'customer', ?, ?)",
-            (ticket_id, agent_id, message, sim_time.isoformat()),
-        )
-        conn.commit()
-
-        summary.new_tickets.append(ticket_id)
-        _log_event(conn, tick, "ticket_created", agent_id, {"ticket_id": ticket_id, "subject": _extract_subject(message)})
-
     # ------------------------------------------------------------------
-    # Phase 2: Routing
+    # Phase 2: Routing (no LLM calls, stays sequential)
     # ------------------------------------------------------------------
 
     def _routing_phase(self, tick: int, sim_time: datetime, summary: TickSummary) -> None:
@@ -170,22 +203,51 @@ class TickProcessor:
             conn.close()
 
     # ------------------------------------------------------------------
-    # Phase 3: Employee phase
+    # Phase 3: Employee phase (parallel LLM calls)
     # ------------------------------------------------------------------
 
     def _employee_phase(self, tick: int, sim_time: datetime, summary: TickSummary) -> None:
         conn = get_connection(self.db_path)
         try:
+            # Gather work — which employees have actionable tickets
+            work = []  # (agent_id, agent, perception, ticket_ids)
             for agent_id, agent in self.pool.employees.items():
+                if not agent.is_alive():
+                    try:
+                        agent.respawn()
+                    except Exception as e:
+                        print(f"[Tick {tick}] Employee {agent_id} respawn failed: {e}")
+                        continue
+
                 actionable = self._get_actionable_tickets(conn, agent_id)
                 if not actionable:
                     continue
-
                 perception = self._build_employee_perception(agent_id, actionable, sim_time)
-                # Employee acts autonomously — CLI tools write directly to world.db
-                agent.send_message(perception)
-                summary.employee_actions += len(actionable)
-                _log_event(conn, tick, "agent_acted", agent_id, {"tickets_handled": [t["id"] for t in actionable]})
+                work.append((agent_id, agent, perception, [t["id"] for t in actionable]))
+
+            # Parallel LLM calls — agents act autonomously via CLI tools in Docker
+            # busy_timeout handles SQLite lock contention from concurrent container writes
+            if work:
+                with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                    futures = {}
+                    for agent_id, agent, perception, ticket_ids in work:
+                        def _do_act(a=agent, p=perception):
+                            a.send_message(p)
+                        futures[executor.submit(_do_act)] = (agent_id, ticket_ids)
+
+                    for future in as_completed(futures):
+                        agent_id, ticket_ids = futures[future]
+                        try:
+                            future.result()
+                            summary.employee_actions += len(ticket_ids)
+                            _log_event(conn, tick, "agent_acted", agent_id, {"tickets_handled": ticket_ids})
+                        except Exception as e:
+                            print(f"[Tick {tick}] Employee {agent_id} error: {e}")
+                            _log_event(conn, tick, "agent_error", agent_id, {"error": str(e), "phase": "employee"})
+                            try:
+                                self.pool.employees[agent_id].respawn()
+                            except Exception:
+                                pass
 
             # Check if any tickets got escalated during this phase
             newly_escalated = conn.execute(
@@ -245,7 +307,7 @@ class TickProcessor:
         return "\n".join(lines)
 
     # ------------------------------------------------------------------
-    # Phase 4: Manager phase
+    # Phase 4: Manager phase (sequential — typically only 1 manager)
     # ------------------------------------------------------------------
 
     def _manager_phase(self, tick: int, sim_time: datetime, summary: TickSummary) -> None:
@@ -264,12 +326,23 @@ class TickProcessor:
                 return
 
             for agent_id, agent in self.pool.managers.items():
-                perception = self._build_manager_perception(escalated, escalation_msgs, sim_time)
-                agent.send_message(perception)
-                summary.manager_actions += 1
-                _log_event(conn, tick, "manager_acted", agent_id, {
-                    "escalated_tickets": [dict(r)["id"] for r in escalated],
-                })
+                try:
+                    if not agent.is_alive():
+                        agent.respawn()
+                    perception = self._build_manager_perception(escalated, escalation_msgs, sim_time)
+                    agent.send_message(perception)
+                    summary.manager_actions += 1
+                    _log_event(conn, tick, "manager_acted", agent_id, {
+                        "escalated_tickets": [dict(r)["id"] for r in escalated],
+                    })
+                except Exception as e:
+                    print(f"[Tick {tick}] Manager {agent_id} error: {e}")
+                    _log_event(conn, tick, "agent_error", agent_id, {"error": str(e), "phase": "manager"})
+                    conn.commit()
+                    try:
+                        agent.respawn()
+                    except Exception:
+                        pass
 
             conn.commit()
         finally:
