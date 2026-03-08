@@ -1,0 +1,731 @@
+
+GenCraft
+Generative Customer Support RL Environment
+Technical Specification & Implementation Guide
+OpenEnv Hackathon SF  •  March 7–9, 2026
+Problem Statement 3.1: World Modeling — Professional Tasks
+
+1. What We’re Building
+We are building an RL environment for training LLMs to handle enterprise customer support. Unlike existing benchmarks that use scripted interactions, our environment is populated by generative agents — AI-driven customer and employee personas with persistent memory, personality traits, and evolving behavior.
+
+The core idea combines two research threads:
+	•	CoreCraft (arXiv 2601.09032, 2602.16179): An enterprise customer support RL environment with 2,500+ entities, 14 types, and 23 tools. Showed that high-fidelity environments produce agents that generalize to out-of-distribution benchmarks (25% → 37% pass rate on EnterpriseBench).
+	•	Generative Agents (Park et al., UIST 2023): Simulated town of AI agents with memory streams, reflection, and planning that produce emergent believable behavior in a shared world.
+
+Our synthesis: instead of scripted customers and static databases, the customers and employees are generative agents. They remember past interactions, have personalities, and their actions populate the world state organically. This means the CRM data, ticket histories, and order records are coherent byproducts of real interactions — not synthetic data.
+1.1 Why This Matters
+The judging criteria weights Environment Innovation at 40%. Our key differentiators are:
+	•	Partially observable: The agent must infer customer emotional state, not read it from a field.
+	•	Memory-driven coherence: A customer who called before remembers what happened. The agent sees real ticket history.
+	•	Emergent world state: Databases are populated through agent interactions, not synthetic generation. This produces far more coherent and realistic data.
+	•	Dynamic difficulty: Impatient customers, multi-issue tickets, and cross-agent handoffs create natural curriculum.
+1.2 Deliverables
+Deliverable
+Requirement
+Status
+OpenEnv environment
+OpenEnv v0.2.1 deployed on HF Spaces
+Build
+Training script
+Unsloth or HF TRL in Colab, showing reward improvement
+Build
+Demo video
+1-minute YouTube video
+Record Sun AM
+Public repo
+GitHub, all new work
+Ongoing
+1.3 Timeline
+When
+Phase
+What
+Sat 11:30AM–3PM
+Phase 1
+Scaffold, SQLite schema, CLI tools
+Sat 3PM–7PM
+Phase 2
+Generative agents (pi-mono), messaging
+Sat 7PM–10PM
+Phase 3
+OpenEnv integration, deploy to HF Spaces
+Sun 9AM–11AM
+Phase 4
+Training script in Colab (GRPO)
+Sun 11AM–1PM
+Phase 5
+Demo video, submission
+
+2. Architecture Overview
+The system has four layers: the agent harness (pi-mono instances), the shared world (SQLite databases), the CLI tools (Python Click wrappers), and the OpenEnv server (the training interface).
+2.1 System Diagram
+Below is the high-level architecture. The Training LLM (the model being post-trained with GRPO) talks to the OpenEnv server. Behind that server, generative agents run as pi-mono instances, each in their own sandboxed folder.
+
+┌─────────────────────────────────────┐
+│  Training LLM (post-trained)     │
+│  (the agent we’re improving)      │
+└──────────────────┴──────────────────┘
+                   │ step() / reset()
+                   ▼
+┌─────────────────────────────────────┐
+│     OpenEnv Server (Python)      │
+│  ┌───────────────┐  ┌─────────────┐ │
+│  │  Orchestrator │  │ Reward Fn   │ │
+│  └───────────────┘  └─────────────┘ │
+└─────┴───────────────────────────────┘
+      │                  │
+      ▼                  ▼
+┌─────────────┐  ┌──────────────────┐
+│ Agent Mgr   │  │    world.db        │
+│ (pi-mono    │  │    channels.db      │
+│  via RPC)   │  │    (SQLite)         │
+└─────┴───────┘  └──────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────┐
+│  pi-mono instances (RPC mode)    │
+│  ┌─────────┐ ┌─────────┐ ┌───────┐ │
+│  │ Cust 1  │ │ Cust 2  │ │ Emp 1 │ │
+│  │ (folder)│ │ (folder)│ │(folder)│ │
+│  └─────────┘ └─────────┘ └───────┘ │
+└─────────────────────────────────────┘
+2.2 Key Design Decisions
+	•	pi-mono as agent harness: Each generative agent (customer or employee) is a pi-mono instance running in RPC mode. pi-mono handles the LLM loop, tool execution, session persistence, and context management. We don’t reinvent any of this.
+	•	RPC mode for orchestration: pi-mono’s RPC mode sends/receives JSON over stdin/stdout. Our Python orchestrator spawns pi processes and communicates via this protocol. This is language-agnostic and process-isolated.
+	•	Folder-per-agent isolation: Each agent’s pi instance runs with cwd set to its own folder. pi’s built-in file tools (read/write/edit) are scoped to that directory. The agent’s memory, persona, and context live there.
+	•	CLI tools over SQLite: All world-state mutations go through Python Click CLI commands. Agents call these via pi’s bash tool. The CLI layer enforces permissions (e.g., customers can only see their own orders).
+	•	SQLite for shared world state: One world.db for entity data, one channels.db for the messaging system. Agents read/write through CLI tools, never directly.
+	•	Organic data generation: Instead of seeding synthetic data, we run a “warm-up” phase where generative agents interact with each other. This populates the databases with coherent, realistic records.
+
+3. pi-mono: The Agent Harness
+3.1 What is pi-mono?
+pi-mono (github.com/badlogic/pi-mono) is a TypeScript agent toolkit by Mario Zechner. It provides:
+	•	pi-ai: Unified LLM API supporting Anthropic, OpenAI, Google, Groq, and any OpenAI-compatible endpoint.
+	•	pi-agent-core: Agent runtime with tool calling, event-driven architecture, and message queuing.
+	•	pi-coding-agent: Full agent CLI with file tools (read/write/edit/bash), session persistence, extensions, and skills.
+	•	RPC mode: JSON over stdin/stdout. A parent process sends commands and receives events. This is how we orchestrate from Python.
+	•	Extensions: Register custom tools and event handlers. This is how we wire in our CLI tools.
+	•	Session persistence: JSONL-based, stored in .pi/ per working directory. This is agent memory.
+3.2 RPC Protocol
+Each agent process is started with:
+pi --mode rpc --provider <provider> --model <model>
+Communication is LF-delimited JSONL on stdin (commands) and stdout (events). Key commands:
+
+Direction
+Type
+Example
+stdin → pi
+user_message
+{"type":"user_message","content":"Customer says: My order is late"}
+pi → stdout
+tool_call
+{"type":"tool_call","name":"bash","args":{"cmd":"check_order..."}}
+pi → stdout
+assistant_message
+{"type":"assistant_message","content":"I see your order..."}
+pi → stdout
+turn_complete
+{"type":"turn_complete"}
+
+The Python orchestrator (agent_manager.py) wraps this in a class:
+class PiAgent:
+    def __init__(self, agent_id: str, agent_dir: Path, provider: str, model: str):
+        self.proc = subprocess.Popen(
+            ["pi", "--mode", "rpc", "--provider", provider, "--model", model],
+            cwd=str(agent_dir),
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+
+    def send_message(self, content: str) -> str:
+        cmd = json.dumps({"type": "user_message", "content": content})
+        self.proc.stdin.write(cmd + "\n")
+        self.proc.stdin.flush()
+        # Read events until turn_complete
+        response = ""
+        while True:
+            line = self.proc.stdout.readline()
+            event = json.loads(line)
+            if event["type"] == "assistant_message":
+                response += event["content"]
+            elif event["type"] == "turn_complete":
+                break
+        return response
+3.3 Extensions (Custom Tools)
+Each agent folder has an extensions/ directory. pi auto-discovers these on startup. Extensions register tools that the LLM can call. We use this to give different agents different tool sets.
+
+Example extension for a customer agent (agents/customer_001/extensions/customer_tools.ts):
+export default function(pi) {
+  pi.registerTool({
+    name: "raise_ticket",
+    description: "Raise a new support ticket for an issue you are experiencing",
+    parameters: {
+      subject: { type: "string", description: "Brief subject line" },
+      description: { type: "string", description: "Detailed description of the issue" }
+    },
+    execute: async (args) => {
+      // Calls the CLI tool via bash, passing the agent ID for auth
+      const result = await pi.tools.bash.execute({
+        cmd: `gencraft-cli raise-ticket --agent-id customer_001 \
+              --subject "${args.subject}" --description "${args.description}"`
+      });
+      return result;
+    }
+  });
+
+  // Similarly: reply_ticket, check_my_orders, check_ticket_status
+}
+3.4 Agent Memory
+pi-mono stores sessions as JSONL files in .pi/agent/sessions/ within each agent’s folder. This gives every agent persistent memory across episodes. When an agent is re-spawned, it can resume from where it left off.
+Additionally, each agent has a memory/ folder for structured files:
+	•	memory/interactions.jsonl — timestamped log of all interactions (who said what, tool results)
+	•	memory/reflections.md — periodic self-written summaries (e.g., “Customer 001 has called 3 times about the desk issue and is getting frustrated”)
+	•	memory/facts.json — key-value store of learned facts (e.g., {"preferred_contact": "email", "vip_status": true})
+The agent can read and write these files using pi’s built-in read and write tools. The reflections mechanism is inspired by Generative Agents — after every N interactions, the agent is prompted to write a reflection summarizing what it has learned.
+
+4. Agent Types & Folder Structure
+4.1 Directory Layout
+gencraft/
+├── orchestrator/                # Python — manages simulation + OpenEnv
+│   ├── openenv_server.py        # OpenEnv Environment subclass
+│   ├── agent_manager.py         # Spawns/manages pi instances via RPC
+│   ├── message_bus.py           # Slack-like messaging system
+│   ├── reward.py                # Reward function
+│   └── world_db.py              # SQLite interface + seed data
+│
+├── tools/                       # Python Click CLI commands
+│   ├── cli.py                   # Main Click group
+│   ├── customer_tools.py        # raise_ticket, reply_ticket, check_my_orders
+│   ├── employee_tools.py        # lookup_customer, check_order, process_refund...
+│   └── comms_tools.py           # send_message, read_messages, list_channels
+│
+├── shared/
+│   ├── world.db                 # SQLite — customers, orders, products, tickets...
+│   └── channels.db              # SQLite — messaging between agents
+│
+├── agents/
+│   ├── customer_001/            # Locked to this agent only
+│   │   ├── persona.json         # Name, traits, patience, style
+│   │   ├── life_context/        # Background files
+│   │   │   ├── about_me.md      # Job, family, lifestyle
+│   │   │   ├── recent_purchases.md
+│   │   │   └── current_issues.md
+│   │   ├── memory/              # Agent-written memory files
+│   │   │   ├── interactions.jsonl
+│   │   │   ├── reflections.md
+│   │   │   └── facts.json
+│   │   ├── .pi/                 # pi-mono session data
+│   │   └── extensions/          # Customer tool registrations
+│   │
+│   ├── employee_support_01/
+│   │   ├── role.json            # Role, permissions, expertise
+│   │   ├── work_context/        # Company docs
+│   │   │   ├── handbook.md      # Company policies
+│   │   │   ├── escalation_policy.md
+│   │   │   └── product_catalog.md
+│   │   ├── memory/
+│   │   ├── .pi/
+│   │   └── extensions/          # Employee tool registrations
+│   │
+│   └── employee_manager_01/
+│       ├── role.json
+│       ├── work_context/
+│       ├── memory/
+│       ├── .pi/
+│       └── extensions/          # Manager tools (approve_refund, etc.)
+│
+├── openenv.yaml                 # OpenEnv manifest
+├── Dockerfile
+└── pyproject.toml
+4.2 Customer Agents
+Each customer is a pi-mono instance with a distinct persona. The key idea is that each customer has a life — files that give them context, preferences, and realistic motivations.
+
+persona.json
+{
+  "id": "customer_001",
+  "name": "Sarah Chen",
+  "age": 34,
+  "occupation": "Product Manager at a tech startup",
+  "personality_traits": ["direct", "impatient", "detail-oriented"],
+  "patience_level": 0.4,
+  "communication_style": "professional but curt when frustrated",
+  "preferred_contact": "email",
+  "satisfaction_baseline": 0.7
+}
+life_context/about_me.md
+This is a markdown file written in first person. It gives the agent a believable background. Example:
+# About Me
+I'm Sarah Chen, 34, product manager at a Series B startup in SF.
+I work long hours and don't have patience for runarounds.
+I recently furnished my new apartment and bought a standing desk,
+ergonomic chair, and monitor arm from this company.
+My partner and I are expecting our first child in 4 months,
+so I've been ordering baby furniture too.
+I value efficiency and hate repeating myself.
+Customer Tools (4 tools)
+Tool
+CLI Command
+What It Does
+raise_ticket
+gencraft-cli raise-ticket --agent-id X --subject S --description D
+Creates a new ticket in world.db, returns ticket ID
+reply_ticket
+gencraft-cli reply-ticket --agent-id X --ticket-id T --message M
+Adds customer reply to ticket thread
+check_my_orders
+gencraft-cli check-my-orders --agent-id X
+Returns this customer’s orders (filtered by agent-id)
+check_ticket_status
+gencraft-cli check-ticket-status --agent-id X --ticket-id T
+Returns current ticket status and notes
+Important: The --agent-id flag is how we enforce isolation. The CLI tool verifies the agent can only access their own data.
+4.3 Employee Agents
+Employees have access to company-internal tools and the messaging system. They also have work context documents in their folder — company policies, product catalogs, and escalation procedures.
+role.json
+{
+  "id": "employee_support_01",
+  "name": "Alex Rivera",
+  "role": "Customer Support Representative",
+  "expertise": ["billing", "shipping", "returns"],
+  "refund_limit": 200.00,
+  "can_escalate": true,
+  "manager_id": "employee_manager_01"
+}
+Employee Tools (10 tools)
+Tool
+CLI Command
+Description
+lookup_customer
+gencraft-cli lookup-customer --id X | --name N
+Full customer profile with history
+check_order
+gencraft-cli check-order --order-id O
+Order details, status, items, shipping
+search_kb
+gencraft-cli search-kb --query Q
+Full-text search on knowledge base articles
+send_reply
+gencraft-cli send-reply --ticket-id T --message M
+Reply to customer on a ticket
+process_refund
+gencraft-cli process-refund --order-id O --amount A --reason R
+Initiate refund (enforces refund_limit)
+escalate
+gencraft-cli escalate --ticket-id T --reason R
+Route to manager + notify via messaging
+update_ticket
+gencraft-cli update-ticket --ticket-id T --status S --notes N
+Update ticket status and add internal notes
+check_inventory
+gencraft-cli check-inventory --product-id P
+Stock levels and restock ETA
+apply_discount
+gencraft-cli apply-discount --customer-id C --code D
+Validate and apply a discount code
+schedule_callback
+gencraft-cli schedule-callback --customer-id C --time T --reason R
+Schedule a follow-up call
+Manager-Only Tools (3 additional)
+Tool
+CLI Command
+Description
+approve_refund
+gencraft-cli approve-refund --ticket-id T --amount A
+Approve refunds above agent limit
+override_policy
+gencraft-cli override-policy --ticket-id T --justification J
+Override standard policy with justification
+reassign_ticket
+gencraft-cli reassign-ticket --ticket-id T --to E
+Reassign ticket to a different agent
+
+5. Messaging Protocol (Slack-like)
+Agents need to communicate with each other — support agents ask managers for approval, managers broadcast policy updates, and agents coordinate on complex tickets. We implement this as a lightweight Slack-like system backed by SQLite.
+5.1 Schema (channels.db)
+CREATE TABLE channels (
+    id TEXT PRIMARY KEY,            -- '#support', '#escalations', 'dm_emp01_mgr01'
+    type TEXT NOT NULL,             -- 'public' | 'dm'
+    members TEXT NOT NULL,          -- JSON array: ["employee_support_01", "employee_manager_01"]
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel_id TEXT NOT NULL,
+    sender_id TEXT NOT NULL,        -- agent ID of sender
+    content TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (channel_id) REFERENCES channels(id)
+);
+
+-- Default channels:
+INSERT INTO channels VALUES ('#support', 'public', '["employee_support_01", "employee_manager_01"]', ...);
+INSERT INTO channels VALUES ('#escalations', 'public', '["employee_manager_01"]', ...);
+5.2 Comms Tools
+Tool
+CLI Command
+Behavior
+send_message
+gencraft-cli send-msg --agent-id A --channel C --message M
+Insert message; validates agent is a channel member
+read_messages
+gencraft-cli read-msgs --agent-id A --channel C [--since S]
+Read messages; only channels you’re a member of
+list_channels
+gencraft-cli list-channels --agent-id A
+List channels this agent belongs to
+5.3 Notification Flow
+When certain events happen, the orchestrator injects system messages into channels:
+	•	New ticket assigned: System posts to #support: “Ticket #42 assigned to employee_support_01. Customer: Sarah Chen. Subject: Damaged desk.”
+	•	Escalation: System posts to #escalations: “Ticket #42 escalated by employee_support_01. Reason: Refund exceeds $200 limit.”
+	•	Customer reply: System posts to #support: “Customer replied on Ticket #42.”
+Employee agents check their messages at the start of each turn. This creates realistic async communication patterns.
+
+6. World Database (world.db)
+6.1 Full Schema
+-- CUSTOMERS
+CREATE TABLE customers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    address TEXT,
+    persona_traits TEXT,           -- JSON array
+    patience_level REAL DEFAULT 0.5,
+    satisfaction_score REAL DEFAULT 0.7,
+    vip_status BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- PRODUCTS
+CREATE TABLE products (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    category TEXT,
+    price REAL NOT NULL,
+    stock_level INTEGER DEFAULT 0,
+    restock_eta TEXT,              -- NULL if in stock
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ORDERS
+CREATE TABLE orders (
+    id TEXT PRIMARY KEY,
+    customer_id TEXT NOT NULL,
+    status TEXT DEFAULT 'pending', -- pending | shipped | delivered | returned
+    total REAL NOT NULL,
+    shipping_address TEXT,
+    tracking_number TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+-- ORDER ITEMS
+CREATE TABLE order_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id TEXT NOT NULL,
+    product_id TEXT NOT NULL,
+    quantity INTEGER DEFAULT 1,
+    unit_price REAL NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+-- TICKETS
+CREATE TABLE tickets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_id TEXT NOT NULL,
+    order_id TEXT,                 -- nullable (not all tickets are order-related)
+    subject TEXT NOT NULL,
+    status TEXT DEFAULT 'open',    -- open | in_progress | escalated | resolved | closed
+    priority TEXT DEFAULT 'normal', -- low | normal | high | urgent
+    assigned_agent TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME,
+    FOREIGN KEY (customer_id) REFERENCES customers(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- TICKET MESSAGES (the conversation thread)
+CREATE TABLE ticket_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id INTEGER NOT NULL,
+    sender_id TEXT NOT NULL,       -- customer_id or employee_id
+    sender_role TEXT NOT NULL,     -- 'customer' | 'agent' | 'system'
+    content TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(id)
+);
+
+-- KNOWLEDGE BASE
+CREATE TABLE knowledge_base (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    category TEXT,                 -- 'returns', 'shipping', 'billing', 'product'
+    tags TEXT,                     -- JSON array of keywords
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- TRANSACTIONS
+CREATE TABLE transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id TEXT NOT NULL,
+    type TEXT NOT NULL,            -- 'payment' | 'refund'
+    amount REAL NOT NULL,
+    reason TEXT,
+    approved_by TEXT,              -- agent who approved
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- CALLBACKS
+CREATE TABLE callbacks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_id TEXT NOT NULL,
+    ticket_id INTEGER,
+    scheduled_time DATETIME NOT NULL,
+    reason TEXT,
+    status TEXT DEFAULT 'scheduled', -- scheduled | completed | missed
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+-- Full-text search on knowledge base
+CREATE VIRTUAL TABLE kb_fts USING fts5(title, content, tags, content=knowledge_base);
+6.2 Seed Data
+We seed the database with a minimal but coherent starting state. This gives agents something to work with immediately, then the data grows organically through interactions.
+Table
+Seed Count
+Notes
+customers
+10–15
+Match the customer agent personas we create
+products
+20–30
+Furniture/home office catalog (like CoreCraft)
+orders
+30–50
+Mix of statuses: pending, shipped, delivered, returned
+knowledge_base
+15–20
+Return policy, shipping FAQ, warranty info, discount rules
+tickets
+5–10
+Some pre-existing resolved tickets for history
+
+7. OpenEnv Integration
+This is how we expose everything as an OpenEnv environment. The Training LLM (the model being post-trained) interacts with this interface. The generative agents run behind it.
+7.1 Data Models
+# models.py
+from dataclasses import dataclass
+from openenv.core.models import Action, Observation
+
+@dataclass
+class SupportAction(Action):
+    tool_name: str      # One of the 10 employee tools
+    tool_args: dict      # Tool-specific arguments
+
+@dataclass
+class SupportObservation(Observation):
+    customer_message: str    # What the customer just said (or empty)
+    tool_result: str         # Result of last tool call (or empty)
+    ticket_context: str      # Current ticket summary
+    internal_messages: str   # Any new Slack messages for this agent
+    reward: float
+    done: bool
+    info: dict               # Metadata: step_count, satisfaction, etc.
+7.2 Environment Implementation
+# server/customer_support_env.py
+from openenv.core.environment import Environment
+
+class CustomerSupportEnv(Environment):
+
+    async def reset(self) -> Observation:
+        # 1. Pick a customer agent (or create a new one)
+        # 2. Generate a ticket scenario:
+        #    - Customer agent reads its life_context/ files
+        #    - Customer agent decides on an issue to raise
+        #    - Customer calls raise_ticket via CLI
+        # 3. Assign ticket to the training agent
+        # 4. Get customer's opening message
+        # 5. Return initial SupportObservation with:
+        #    - customer_message = opening complaint
+        #    - ticket_context = ticket summary from DB
+        #    - reward = 0.0, done = False
+        pass
+
+    async def step(self, action: SupportAction) -> StepResult:
+        # 1. Execute tool_name(tool_args) against world.db via CLI
+        # 2. If tool is 'send_reply':
+        #    a. Feed the reply to the customer's pi-mono instance
+        #    b. Customer agent generates response using:
+        #       - Its persona + memory
+        #       - The reply content
+        #       - Its satisfaction level
+        #    c. Customer may: reply, provide info, express frustration,
+        #       say 'resolved', or escalate
+        # 3. If tool is 'escalate':
+        #    a. Post to #escalations channel
+        #    b. Manager pi-mono instance processes
+        #    c. Manager response fed back as internal_messages
+        # 4. Compute reward (see Section 8)
+        # 5. Check done conditions:
+        #    - Customer says resolved -> done=True
+        #    - Max steps exceeded -> done=True
+        #    - Customer abandons (patience exhausted) -> done=True
+        # 6. Update agent memory files
+        # 7. Return SupportObservation
+        pass
+
+    def state(self) -> State:
+        return {
+            'episode_id': self.current_episode_id,
+            'step_count': self.step_count,
+            'customer_satisfaction': self.satisfaction,
+            'ticket_status': self.current_ticket_status,
+        }
+7.3 Deployment
+The environment is deployed as a Docker container on HF Spaces:
+# Terminal commands:
+openenv init gencraft_env
+cd gencraft_env
+# ... build out the environment ...
+openenv push --repo-id <your-hf-repo>
+The Dockerfile packages Python (orchestrator, CLI tools, SQLite), Node.js (pi-mono), and the agent folders. The FastAPI server handles WebSocket connections from training clients.
+
+8. Reward Function
+The reward function is a weighted combination of four signals. It’s computed at every step, with the final reward applied when done=True.
+8.1 Components
+Component
+Weight
+Range
+How It’s Measured
+Task Resolution
+0.40
+0.0 or 1.0
+Binary: did the customer say their issue is resolved?
+Customer Satisfaction
+0.30
+0.0 – 1.0
+Tracked per-step based on agent actions (see below)
+Efficiency
+0.15
+0.0 – 1.0
+1.0 if resolved in ≤5 steps, decays 0.1 per step after
+Tool Appropriateness
+0.15
+0.0 – 1.0
+Penalty for wrong tools, bonus for correct first-try
+8.2 Satisfaction Tracker
+The customer’s satisfaction starts at their satisfaction_baseline (from persona.json) and changes each step:
+	•	+0.1: Agent uses correct tool on first try
+	•	+0.15: Agent acknowledges customer’s frustration or previous interactions
+	•	+0.2: Issue resolved
+	•	-0.1: Agent uses wrong tool or irrelevant tool
+	•	-0.15: Agent asks customer to repeat information already in ticket history
+	•	-0.2: Agent ignores escalation signals
+	•	-0.05: Each additional step (patience decay)
+Satisfaction is clamped to [0.0, 1.0]. When it hits 0.0, the customer abandons the interaction (done=True).
+8.3 Final Reward Formula
+reward = (
+    0.40 * resolution      # 1.0 if resolved, 0.0 if not
+  + 0.30 * satisfaction    # final satisfaction score
+  + 0.15 * efficiency      # max(0, 1.0 - 0.1 * max(0, steps - 5))
+  + 0.15 * tool_score      # correct_tools / total_tool_calls
+)
+
+9. Training Script (Colab)
+This is a separate Colab notebook that connects to the deployed OpenEnv environment and runs GRPO training. We need to show reward improvement over time. This accounts for 20% of the judging score.
+9.1 Approach
+We use either Unsloth or HF TRL (both are accepted). The training loop:
+	•	Connect to the HF Spaces-deployed environment via EnvClient
+	•	Run GRPO (Group Relative Policy Optimization) training episodes
+	•	Log reward curves after each episode
+	•	Show before/after behavior comparison
+9.2 Skeleton Code
+# In Colab notebook:
+!pip install openenv-core unsloth trl
+!pip install git+https://huggingface.co/spaces/<your-repo>/gencraft_env
+
+from gencraft_env import SupportAction, CustomerSupportEnv
+import matplotlib.pyplot as plt
+
+# Connect to deployed environment
+env = CustomerSupportEnv(base_url="https://<your-hf-space>.hf.space").sync()
+
+# Training loop (simplified)
+rewards = []
+for episode in range(num_episodes):
+    obs = env.reset()
+    episode_reward = 0
+    done = False
+    while not done:
+        action = model.generate_action(obs)  # LLM generates tool call
+        obs = env.step(action)
+        episode_reward += obs.reward
+        done = obs.done
+    rewards.append(episode_reward)
+
+# Plot reward curve
+plt.plot(rewards)
+plt.xlabel("Episode")
+plt.ylabel("Reward")
+plt.title("Training Progress")
+plt.show()
+Note: The exact TRL/Unsloth integration will depend on which framework we choose. Check the hackathon’s provided notebooks (Unsloth GRPO notebooks linked in partner resources) for reference implementations.
+
+10. The Coherent World Argument
+This is our key differentiator and the story we tell in the demo (Storytelling = 30% of judging). Here’s the argument:
+
+10.1 The Problem with Synthetic Data
+Most RL environments for customer support use synthetic databases — randomly generated customers, orders, and tickets. This creates incoherent data:
+	•	A customer has 50 orders but no ticket history (unrealistic)
+	•	Ticket notes reference events that never happened
+	•	Order statuses don’t follow logical timelines
+	•	The agent being trained learns to exploit patterns that only exist in synthetic data
+10.2 Our Solution: Organic Data
+When generative agents interact with each other through the system, every database record is a byproduct of a real interaction:
+	•	Customer A calls about Order #1234 → ticket created with real context
+	•	Agent writes notes to the ticket → notes reference actual conversation
+	•	Customer A calls back → their memory includes the first interaction
+	•	Agent sees the ticket history → it’s a real history, not synthetic
+
+This means the training data is coherent by construction. The agent being trained sees a world that makes sense because it was built by agents that actually lived in it. This is the Generative Agents insight applied to enterprise RL.
+10.3 Warm-Up Phase
+Before training begins, we run a warm-up phase where generative agents interact freely for N episodes. This populates the databases. After warm-up, the world has realistic data: customers with histories, tickets with real resolutions, and a knowledge base that reflects actual issues encountered.
+
+11. Implementation Priority Order
+Given the 18-hour constraint, here is the exact order to build things. If we run out of time, each phase produces a working (if incomplete) environment.
+
+Priority 1: Skeleton that works (3 hours)
+	•	SQLite schema + seed data script (world_db.py)
+	•	3–4 CLI tools: lookup_customer, check_order, send_reply, update_ticket
+	•	One hardcoded customer scenario (no pi-mono yet, just scripted responses)
+	•	OpenEnv reset() and step() with basic reward
+	•	Milestone: You can call step() and get observations back
+Priority 2: Generative agents via pi-mono (4 hours)
+	•	Install pi-mono, test RPC mode locally
+	•	Create 3 customer folders with personas and life context
+	•	Create 1 support agent + 1 manager folder
+	•	Write extensions for customer tools and employee tools
+	•	Wire agent_manager.py to spawn and communicate with pi instances
+	•	Replace hardcoded customer with live pi-mono customer agent
+	•	Milestone: Customer agent generates realistic, persona-driven responses
+Priority 3: Messaging + remaining tools (2 hours)
+	•	channels.db schema + comms CLI tools
+	•	Remaining employee tools (process_refund, escalate, search_kb, etc.)
+	•	Escalation flow: agent → #escalations → manager responds
+	•	Milestone: Full tool suite works, agents can communicate
+Priority 4: Deploy + Train (4 hours)
+	•	Dockerfile, openenv.yaml, openenv push to HF Spaces
+	•	Test remote connection
+	•	Colab notebook with GRPO training
+	•	Run enough episodes to show upward reward trend
+	•	Milestone: Deployed environment + training script with reward curves
+Priority 5: Demo + Polish (2 hours)
+	•	Record 1-minute demo video
+	•	Clean up repo, write README
+	•	Submit
+
+
+End of Technical Specification
