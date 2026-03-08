@@ -228,10 +228,10 @@ class TickProcessor:
     # ------------------------------------------------------------------
 
     def _employee_phase(self, tick: int, sim_time: datetime, summary: TickSummary) -> None:
+        # Phase 1: Gather work items (requires DB read)
         conn = get_connection(self.db_path)
+        work = []  # (agent_id, agent, perception, ticket_ids)
         try:
-            # Gather work — which employees have actionable tickets
-            work = []  # (agent_id, agent, perception, ticket_ids)
             for agent_id, agent in self.pool.employees.items():
                 if not agent.is_alive():
                     try:
@@ -245,31 +245,43 @@ class TickProcessor:
                     continue
                 perception = self._build_employee_perception(agent_id, actionable, sim_time)
                 work.append((agent_id, agent, perception, [t["id"] for t in actionable]))
+        finally:
+            conn.close()
 
-            # Parallel LLM calls — agents act autonomously via CLI tools in Docker
-            # busy_timeout handles SQLite lock contention from concurrent container writes
-            if work:
-                with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                    futures = {}
-                    for agent_id, agent, perception, ticket_ids in work:
-                        def _do_act(a=agent, p=perception):
-                            a.send_message(p)
-                        futures[executor.submit(_do_act)] = (agent_id, agent, perception, ticket_ids)
+        # Phase 2: Parallel LLM calls — close host DB connection first to avoid
+        # conflicts with Docker containers writing concurrently via CLI tools
+        results = []  # (agent_id, agent, perception, ticket_ids, error)
+        if work:
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = {}
+                for agent_id, agent, perception, ticket_ids in work:
+                    def _do_act(a=agent, p=perception):
+                        a.send_message(p)
+                    futures[executor.submit(_do_act)] = (agent_id, agent, perception, ticket_ids)
 
-                    for future in as_completed(futures):
-                        agent_id, agent, perception, ticket_ids = futures[future]
-                        try:
-                            future.result()
-                            _log_trace(conn, tick, agent_id, "employee", perception, agent)
-                            summary.employee_actions += len(ticket_ids)
-                            _log_event(conn, tick, "agent_acted", agent_id, {"tickets_handled": ticket_ids})
-                        except Exception as e:
-                            print(f"[Tick {tick}] Employee {agent_id} error: {e}")
-                            _log_event(conn, tick, "agent_error", agent_id, {"error": str(e), "phase": "employee"})
-                            try:
-                                self.pool.employees[agent_id].respawn()
-                            except Exception:
-                                pass
+                for future in as_completed(futures):
+                    agent_id, agent, perception, ticket_ids = futures[future]
+                    try:
+                        future.result()
+                        results.append((agent_id, agent, perception, ticket_ids, None))
+                    except Exception as e:
+                        print(f"[Tick {tick}] Employee {agent_id} error: {e}")
+                        results.append((agent_id, agent, perception, ticket_ids, e))
+
+        # Phase 3: Write results to DB (reopen connection after containers are done)
+        conn = get_connection(self.db_path)
+        try:
+            for agent_id, agent, perception, ticket_ids, error in results:
+                if error:
+                    _log_event(conn, tick, "agent_error", agent_id, {"error": str(error), "phase": "employee"})
+                    try:
+                        self.pool.employees[agent_id].respawn()
+                    except Exception:
+                        pass
+                else:
+                    _log_trace(conn, tick, agent_id, "employee", perception, agent)
+                    summary.employee_actions += len(ticket_ids)
+                    _log_event(conn, tick, "agent_acted", agent_id, {"tickets_handled": ticket_ids})
 
             # Check if any tickets got escalated during this phase
             newly_escalated = conn.execute(

@@ -354,7 +354,14 @@ RECENT PURCHASES:
 CURRENT ISSUE:
 {current_issues}
 
-You have one tool available: mark_resolved. You MUST call it when your issue is fully resolved.
+You have one tool available: mark_resolved. Call it when you consider your issue resolved.
+
+WHEN TO CONSIDER YOUR ISSUE RESOLVED:
+- The agent has looked up your order/account and confirmed the details
+- The agent has offered a concrete solution (replacement, refund, fix, discount, etc.)
+- You feel the proposed solution is fair and addresses your concern
+- You do NOT need to wait for the replacement to arrive or the refund to process — once the agent commits to a specific action, that counts as resolved
+- If the agent only says vague things like "I'll look into it" without specifics, that is NOT resolved
 
 If the support agent tries to resolve your issue without fully understanding it, without looking up your order details, or without properly investigating, express frustration and insist they investigate properly before jumping to conclusions.
 
@@ -364,7 +371,7 @@ RESPONSE FORMAT:
    <satisfaction-delta>X</satisfaction-delta>
    where X is a number between -0.2 and +0.2 reflecting how this interaction step made you feel.
    Examples: +0.15 if genuinely helpful, +0.0 if neutral, -0.1 if unhelpful, -0.2 if terrible.
-3. If the issue is fully resolved, ALSO call the mark_resolved tool in the same response.
+3. If the issue is resolved (agent committed to a concrete solution), ALSO call the mark_resolved tool in the same response. Don't wait multiple turns after they've offered a good solution.
 4. Never break character. Never mention the satisfaction tag or the mark_resolved tool to the support agent."""
 
     def _build_employee_system_prompt(self) -> str:
@@ -466,8 +473,15 @@ For each customer interaction:
 1. Look up the customer and their order history first
 2. Understand the issue before responding
 3. Use send-reply to respond to the customer professionally
-4. Follow escalation policy for refunds above ${refund_limit:.2f}
-5. Update the ticket status as you work
+4. Update the ticket status as you work
+5. When you've offered a concrete resolution and the customer seems satisfied, use update-ticket to set status to resolved
+
+ESCALATION — you MUST escalate (use request_escalation tool + notify #escalations) when:
+- A refund or credit above ${refund_limit:.2f} is needed
+- The customer has had 3 or more previous tickets (check with lookup-customer)
+- The customer is a VIP and is dissatisfied
+- A policy exception or override is needed
+- The customer threatens legal action, chargebacks, or wants to speak to a manager
 
 Always acknowledge the customer's feelings. Be thorough but efficient.
 
@@ -475,14 +489,14 @@ IMPORTANT INTERACTION GUIDELINES:
 - NEVER resolve a ticket on your first interaction. Always gather information first.
 - Your first response should acknowledge the issue and ask clarifying questions or look up relevant data.
 - Only offer a resolution after you understand the full picture (customer history, order details, applicable policies).
-- Do NOT mark a ticket as resolved until you've confirmed the customer accepts your proposed solution."""
+- Once you've offered a concrete solution AND the customer has accepted it, mark the ticket as resolved. Don't leave tickets open indefinitely."""
 
     def _build_reply_prompt(self, message: str) -> str:
         return f"""The support agent has replied to your ticket:
 ---
 {message}
 ---
-Respond in character as the customer. Remember to include <satisfaction-delta>X</satisfaction-delta> at the end. If your issue is fully resolved, call the mark_resolved tool."""
+Respond in character as the customer. Remember to include <satisfaction-delta>X</satisfaction-delta> at the end. If the agent has committed to a concrete solution (refund, replacement, fix, etc.) and you're satisfied with it, call the mark_resolved tool — don't wait for the action to physically complete."""
 
     def _parse_response(self, raw: str) -> ScenarioResponse:
         """Extract satisfaction-delta XML tag and clean message."""
