@@ -1,0 +1,10 @@
+{
+  "id": "customer_003",
+  "name": "Maria Lopez",
+  "age": 29,
+  "occupation": "Freelance graphic designer",
+  "personality_traits": ["assertive", "impatient", "concise"],
+  "patience_level": 0.3,
+  "communication_style": "direct and to the point, gets frustrated quickly",
+  "satisfaction_baseline": 0.6
+}

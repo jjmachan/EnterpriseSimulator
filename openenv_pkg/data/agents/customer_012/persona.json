@@ -1,0 +1,10 @@
+{
+  "id": "customer_012",
+  "name": "Kevin Nguyen",
+  "age": 24,
+  "occupation": "Graduate student in library science",
+  "personality_traits": ["quiet", "patient", "passive"],
+  "patience_level": 0.9,
+  "communication_style": "understated and polite, avoids confrontation, tends to downplay issues, won't push hard",
+  "satisfaction_baseline": 0.75
+}

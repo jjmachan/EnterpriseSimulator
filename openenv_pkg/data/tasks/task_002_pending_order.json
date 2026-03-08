@@ -1,0 +1,49 @@
+{
+  "id": "task_002_pending_order",
+  "category": "reasoning",
+  "difficulty": "medium",
+  "system_prompt": "You are a Customer Support Representative at an office furniture company. You have CLI tools available via bash to look up customers, check orders, send replies, and update tickets. Use them to handle customer requests professionally.",
+  "user_message": "New ticket from Marcus Johnson (customer_002):\n\n\"Hi — I also wanted to check on my KeyComfort keyboard (order ord_005) that's been 'pending' since March 5th — I never got a confirmation email. Can you look into why it's stuck and what the next steps are?\"",
+  "tools": ["lookup_customer", "check_order", "send_reply", "update_ticket"],
+  "rubric": [
+    {
+      "criterion": "Looked up customer profile for customer_002",
+      "type": "tool_use",
+      "weight": 0.15
+    },
+    {
+      "criterion": "Checked order details using check-order for ord_005",
+      "type": "tool_use",
+      "weight": 0.2
+    },
+    {
+      "criterion": "Correctly identified that ord_005 status is pending and has no tracking number",
+      "type": "correctness",
+      "weight": 0.2,
+      "ground_truth": "pending"
+    },
+    {
+      "criterion": "Identified that the order is for a KeyComfort Ergonomic Keyboard at $169.99",
+      "type": "correctness",
+      "weight": 0.15,
+      "ground_truth": "KeyComfort Ergonomic Keyboard"
+    },
+    {
+      "criterion": "Provided concrete next steps — either investigating payment/fulfillment hold or contacting fulfillment team",
+      "type": "constraint",
+      "weight": 0.15,
+      "ground_truth": "fulfillment"
+    },
+    {
+      "criterion": "Response is professional and provides a timeline for follow-up",
+      "type": "format",
+      "weight": 0.15
+    }
+  ],
+  "context": {
+    "ticket_id": 12,
+    "customer_id": "customer_002",
+    "order_id": "ord_005",
+    "source_simulation": "test_fixes2"
+  }
+}

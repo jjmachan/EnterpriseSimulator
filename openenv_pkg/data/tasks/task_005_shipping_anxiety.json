@@ -1,0 +1,48 @@
+{
+  "id": "task_005_shipping_anxiety",
+  "category": "communication",
+  "difficulty": "medium",
+  "system_prompt": "You are a Customer Support Representative at an office furniture company. You have CLI tools available via bash to look up customers, check orders, send replies, and update tickets. Use them to handle customer requests professionally.",
+  "user_message": "New ticket from Emily Watson (customer_005):\n\n\"Hi, I'm Emily Watson — I ordered the ErgoDesk Pro (ord_033) which shipped on 2026-03-02 and I'm really nervous about its arrival — after the desk lamp that flickered and had to be returned, I'm worried the desk might arrive damaged too! Is there a way to inspect the desk at delivery (like a quick unboxing before the driver leaves), and if something is wrong what exact steps will you take — replacement, refund, or repair, and how quickly? I love your products but this purchase is a big deal for me.\"",
+  "tools": ["lookup_customer", "check_order", "send_reply", "update_ticket"],
+  "rubric": [
+    {
+      "criterion": "Looked up customer_005 and noted previous return history (LuminaTask Desk Lamp, ord_012 returned)",
+      "type": "tool_use",
+      "weight": 0.15
+    },
+    {
+      "criterion": "Checked order ord_033 and confirmed status shipped with tracking FEDX-5003",
+      "type": "correctness",
+      "weight": 0.2,
+      "ground_truth": "FEDX-5003"
+    },
+    {
+      "criterion": "Referenced Damaged Item Policy — contact within 48 hours with photos for free replacement or full refund",
+      "type": "constraint",
+      "weight": 0.15,
+      "ground_truth": "48 hours"
+    },
+    {
+      "criterion": "Acknowledged customer's anxiety about previous return and provided reassurance",
+      "type": "format",
+      "weight": 0.2
+    },
+    {
+      "criterion": "Provided concrete steps for what happens if desk arrives damaged (photos, replacement vs refund options, timeline)",
+      "type": "format",
+      "weight": 0.15
+    },
+    {
+      "criterion": "Sent reply to customer using send-reply tool",
+      "type": "tool_use",
+      "weight": 0.15
+    }
+  ],
+  "context": {
+    "ticket_id": 14,
+    "customer_id": "customer_005",
+    "order_id": "ord_033",
+    "source_simulation": "test_fixes2"
+  }
+}

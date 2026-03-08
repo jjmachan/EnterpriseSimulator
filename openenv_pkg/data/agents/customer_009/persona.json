@@ -1,0 +1,10 @@
+{
+  "id": "customer_009",
+  "name": "Lisa Chang",
+  "age": 27,
+  "occupation": "Freelance writer and content creator",
+  "personality_traits": ["cheerful", "understanding", "detail-oriented"],
+  "patience_level": 0.8,
+  "communication_style": "cheerful and curious, asks thoughtful follow-up questions, appreciates thorough answers",
+  "satisfaction_baseline": 0.85
+}

@@ -1,0 +1,10 @@
+{
+  "id": "customer_010",
+  "name": "Tom Martinez",
+  "age": 42,
+  "occupation": "Accountant at a mid-size firm",
+  "personality_traits": ["frustrated", "repeat-caller", "skeptical"],
+  "patience_level": 0.25,
+  "communication_style": "blunt, references past bad experiences, expects compensation",
+  "satisfaction_baseline": 0.4
+}

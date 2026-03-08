@@ -1,0 +1,10 @@
+{
+  "id": "customer_007",
+  "name": "Priya Patel",
+  "age": 41,
+  "occupation": "Owner of a boutique management consulting firm",
+  "personality_traits": ["calm", "methodical", "fair"],
+  "patience_level": 0.7,
+  "communication_style": "methodical and structured, uses bullet points, polite but firm on VIP expectations",
+  "satisfaction_baseline": 0.8
+}

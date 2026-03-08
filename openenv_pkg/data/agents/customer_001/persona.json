@@ -1,0 +1,10 @@
+{
+  "id": "customer_001",
+  "name": "Sarah Chen",
+  "age": 34,
+  "occupation": "Product Manager at a tech startup",
+  "personality_traits": ["direct", "impatient", "detail-oriented"],
+  "patience_level": 0.4,
+  "communication_style": "professional but curt when frustrated",
+  "satisfaction_baseline": 0.7
+}

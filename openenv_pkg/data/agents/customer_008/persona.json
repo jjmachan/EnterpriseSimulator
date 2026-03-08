@@ -1,0 +1,10 @@
+{
+  "id": "customer_008",
+  "name": "Robert Taylor",
+  "age": 52,
+  "occupation": "Construction site foreman",
+  "personality_traits": ["gruff", "no-nonsense", "busy"],
+  "patience_level": 0.3,
+  "communication_style": "extremely terse, no pleasantries, demands immediate action, types in short bursts",
+  "satisfaction_baseline": 0.5
+}

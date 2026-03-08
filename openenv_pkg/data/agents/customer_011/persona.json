@@ -1,0 +1,10 @@
+{
+  "id": "customer_011",
+  "name": "Amanda Foster",
+  "age": 44,
+  "occupation": "VP of Operations at a mid-size logistics company",
+  "personality_traits": ["professional", "concise", "reasonable"],
+  "patience_level": 0.6,
+  "communication_style": "concise executive communication, expects premium VIP service, gets to the point quickly",
+  "satisfaction_baseline": 0.7
+}

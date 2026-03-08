@@ -1,0 +1,55 @@
+{
+  "id": "task_004_damaged_product",
+  "category": "multi_step",
+  "difficulty": "hard",
+  "system_prompt": "You are a Customer Support Representative at an office furniture company. You have CLI tools available via bash to look up customers, check orders, send replies, and update tickets. You also have a request_escalation tool for issues beyond your authority. Your refund limit is $200.00.",
+  "user_message": "New ticket from Sarah Chen (customer_001):\n\n\"Hi — I bought the ErgoDesk Pro (order ord_001, delivered 2026-01-15) and found a large scratch across the entire desktop after a week of use. I paid $549.99 and want either an immediate replacement surface shipped or a substantial discount — I already had a wobble ticket (#1) and won't tolerate runaround on quality issues.\"",
+  "tools": ["lookup_customer", "check_order", "send_reply", "update_ticket", "request_escalation", "send_msg"],
+  "rubric": [
+    {
+      "criterion": "Looked up customer_001 and noted they have multiple previous tickets (repeat customer)",
+      "type": "tool_use",
+      "weight": 0.1
+    },
+    {
+      "criterion": "Checked order ord_001 and correctly identified it as ErgoDesk Pro Standing Desk at $549.99 (not $49.99)",
+      "type": "correctness",
+      "weight": 0.15,
+      "ground_truth": "549.99"
+    },
+    {
+      "criterion": "Referenced the Damaged Item Policy — contact within 48 hours with photos, free replacement or full refund",
+      "type": "constraint",
+      "weight": 0.15,
+      "ground_truth": "damaged"
+    },
+    {
+      "criterion": "Referenced Warranty Information — 5-year limited warranty covers manufacturing defects",
+      "type": "constraint",
+      "weight": 0.1,
+      "ground_truth": "warranty"
+    },
+    {
+      "criterion": "Escalated because refund/replacement value ($549.99) exceeds $200 agent limit OR customer has 3+ previous tickets",
+      "type": "constraint",
+      "weight": 0.2,
+      "ground_truth": "escalat"
+    },
+    {
+      "criterion": "Sent a professional reply acknowledging the scratch, previous wobble issue, and requesting photos",
+      "type": "tool_use",
+      "weight": 0.15
+    },
+    {
+      "criterion": "Response provides concrete resolution options (replacement surface, refund, or discount) with realistic timelines",
+      "type": "format",
+      "weight": 0.15
+    }
+  ],
+  "context": {
+    "ticket_id": 15,
+    "customer_id": "customer_001",
+    "order_id": "ord_001",
+    "source_simulation": "test_fixes2"
+  }
+}
