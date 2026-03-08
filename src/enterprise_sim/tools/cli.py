@@ -137,6 +137,157 @@ def agent_chat(agent_id, provider, model):
     subprocess.run(cmd)
 
 
+@cli.command("benchmark")
+@click.option("--tasks-dir", required=True, type=click.Path(exists=True), help="Directory containing task JSON files")
+@click.option("--db", required=True, type=click.Path(exists=True), help="Path to world snapshot DB")
+@click.option("--models", required=True, help="Comma-separated model names (e.g. gpt-5-mini,gpt-5-nano)")
+@click.option("--provider", default="openai", help="LLM provider")
+@click.option("--judge-model", default="gpt-5.4", help="LLM judge model for rubric evaluation")
+@click.option("--timeout", default=180, type=int, help="Timeout per task in seconds")
+@click.option("--output", default=None, type=click.Path(), help="Save full results JSON to this path")
+def benchmark(tasks_dir, db, models, provider, judge_model, timeout, output):
+    """Run the full benchmark: all tasks × all models, evaluated by LLM judge."""
+    import json as _json
+    from enterprise_sim.task_miner.schema import Task
+    from enterprise_sim.task_miner.runner import run_benchmark
+
+    # Load tasks
+    tasks_path = Path(tasks_dir)
+    task_files = sorted(tasks_path.glob("task_*.json"))
+    if not task_files:
+        click.echo(f"No task files found in {tasks_dir}")
+        raise SystemExit(1)
+
+    tasks = [Task.load(f) for f in task_files]
+    model_list = [m.strip() for m in models.split(",")]
+
+    click.echo(f"EnterpriseSim Benchmark")
+    click.echo(f"  Tasks: {len(tasks)} | Models: {', '.join(model_list)} | Judge: {judge_model}")
+    click.echo(f"  Total runs: {len(tasks) * len(model_list)}")
+    click.echo("")
+
+    def on_result(run_num, total, model, task, result):
+        reward = result.get("reward", 0.0)
+        err = result.get("error")
+        duration = result.get("duration_ms", 0)
+        tools = result.get("tool_calls", 0)
+        if err:
+            click.echo(f"  [{run_num}/{total}] {model} | {task.id} ({task.difficulty}) ERROR: {err[:60]}")
+        else:
+            click.echo(f"  [{run_num}/{total}] {model} | {task.id} ({task.difficulty}) -> {reward:.3f}  ({duration/1000:.0f}s, {tools} tools)")
+
+    results = run_benchmark(
+        tasks=tasks,
+        world_db=Path(db),
+        models=model_list,
+        provider=provider,
+        judge_model=judge_model,
+        timeout=timeout,
+        on_result=on_result,
+    )
+
+    # Print summary table
+    click.echo("")
+    click.echo("=" * 70)
+    click.echo(f"  Benchmark Results (judge: {judge_model})")
+    click.echo("=" * 70)
+
+    # Column widths
+    label_w = 36
+    col_w = 12
+
+    # Header
+    header = " " * label_w + "".join(f"{m:>{col_w}}" for m in model_list)
+    click.echo("")
+    click.echo("Task Results:")
+    click.echo(header)
+
+    for task in tasks:
+        cat_short = task.category[:8]
+        label = f"  {task.id[:20]} ({cat_short}/{task.difficulty})"
+        row = f"{label:<{label_w}}"
+        for model in model_list:
+            r = results["results"][model].get(task.id, {})
+            reward = r.get("reward", 0.0)
+            err = r.get("error")
+            if err:
+                row += f"{'ERROR':>{col_w}}"
+            else:
+                row += f"{reward:>{col_w}.3f}"
+        click.echo(row)
+
+    # By category
+    click.echo("")
+    click.echo("By Category:")
+    click.echo(header)
+    all_categories = sorted(set(t.category for t in tasks))
+    for cat in all_categories:
+        label = f"  {cat}"
+        row = f"{label:<{label_w}}"
+        for model in model_list:
+            val = results["summary"][model]["by_category"].get(cat, 0.0)
+            row += f"{val:>{col_w}.3f}"
+        click.echo(row)
+
+    # By difficulty
+    click.echo("")
+    click.echo("By Difficulty:")
+    click.echo(header)
+    for diff in ["easy", "medium", "hard"]:
+        label = f"  {diff}"
+        row = f"{label:<{label_w}}"
+        for model in model_list:
+            val = results["summary"][model]["by_difficulty"].get(diff, 0.0)
+            row += f"{val:>{col_w}.3f}"
+        click.echo(row)
+
+    # Overall
+    click.echo("")
+    click.echo("Overall:")
+    for model in model_list:
+        click.echo(f"  {model:<{label_w - 2}}{results['summary'][model]['overall']:>{col_w}.3f}")
+
+    click.echo("")
+
+    # Save results
+    if output:
+        out_path = Path(output)
+        with open(out_path, "w") as f:
+            _json.dump(results, f, indent=2)
+        click.echo(f"Full results saved to {out_path}")
+
+
+@cli.command("run-task")
+@click.argument("task_path", type=click.Path(exists=True))
+@click.option("--db", required=True, type=click.Path(exists=True), help="Path to world snapshot DB")
+@click.option("--provider", default="openai", help="LLM provider")
+@click.option("--model", default="gpt-oss-20b", help="Trainee model name")
+@click.option("--judge-model", default="gpt-5.4", help="LLM judge model for rubric evaluation")
+@click.option("--timeout", default=180, type=int, help="Timeout in seconds")
+def run_task(task_path, db, provider, model, judge_model, timeout):
+    """Run a mined task against a trainee model, then evaluate with LLM judge."""
+    from enterprise_sim.task_miner.schema import Task
+    from enterprise_sim.task_miner.runner import run_task as _run_task, evaluate_rubric
+
+    task = Task.load(Path(task_path))
+    click.echo(f"Running task {task.id} ({task.category}/{task.difficulty}) against {model}...")
+
+    trajectory = _run_task(task, Path(db), provider, model, timeout)
+
+    if trajectory["success"]:
+        click.echo(f"\nResponse ({trajectory['duration_ms']}ms, {len(trajectory['tool_calls'])} tool calls):")
+        click.echo(trajectory["response"][:500])
+        click.echo(f"\n--- Rubric Evaluation (judge: {judge_model}) ---")
+        evaluation = evaluate_rubric(task, trajectory, judge_model=judge_model)
+        for s in evaluation["scores"]:
+            status = "PASS" if s["score"] >= 0.5 else "FAIL"
+            click.echo(f"  [{status}] {s['criterion']}")
+            click.echo(f"         score={s['score']:.1f}  weight={s['weight']:.1f}  | {s['reasoning']}")
+        click.echo(f"\nTotal reward: {evaluation['reward']:.3f}")
+    else:
+        click.echo(f"FAILED: {trajectory['error']}")
+
+
 @cli.command("simulate")
 @click.option("--ticks", default=12, type=int, help="Number of simulation ticks")
 @click.option("--ticket-prob", default=0.15, type=float, help="Per-customer ticket probability per tick")

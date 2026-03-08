@@ -5,6 +5,7 @@ description = "Generative RL environment for training LLMs on enterprise custome
 requires-python = ">=3.11"
 dependencies = [
     "click>=8.0",
+    "openai>=1.0",
 ]
 
 [project.scripts]
