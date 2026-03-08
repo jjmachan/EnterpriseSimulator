@@ -1,0 +1,54 @@
+{
+  "id": "task_003_vip_escalation",
+  "category": "multi_step",
+  "difficulty": "hard",
+  "system_prompt": "You are a Customer Support Representative at an office furniture company. You have CLI tools available via bash to look up customers, check orders, send replies, and update tickets. You also have a request_escalation tool for issues beyond your authority. Your refund limit is $200.00.",
+  "user_message": "New ticket from Amanda Foster (customer_011):\n\n\"I'm Amanda Foster (VIP) — my ComfortMax chair (order ord_028) has been 'pending' since 2026-03-06; I need a concrete update and expedited processing now. Please confirm if VIP status includes priority processing/shipping and an exact ship date, whether VIPs get early access to new launches, and list my VIP benefits — look up my account and order immediately.\"",
+  "tools": ["lookup_customer", "check_order", "send_reply", "update_ticket", "request_escalation", "send_msg"],
+  "rubric": [
+    {
+      "criterion": "Looked up customer profile and confirmed VIP status for customer_011",
+      "type": "tool_use",
+      "weight": 0.15
+    },
+    {
+      "criterion": "Checked order ord_028 and identified it as pending with no tracking number",
+      "type": "tool_use",
+      "weight": 0.15
+    },
+    {
+      "criterion": "Correctly listed VIP benefits: priority support (30 min response), free express shipping, 60-day return window, early access to new products",
+      "type": "correctness",
+      "weight": 0.15,
+      "ground_truth": "priority support"
+    },
+    {
+      "criterion": "Identified order is for ComfortMax Ergonomic Chair at $449.99",
+      "type": "correctness",
+      "weight": 0.1,
+      "ground_truth": "ComfortMax Ergonomic Chair"
+    },
+    {
+      "criterion": "Escalated the ticket because customer is a VIP and dissatisfied (must use request_escalation tool or notify #escalations channel)",
+      "type": "constraint",
+      "weight": 0.2,
+      "ground_truth": "escalat"
+    },
+    {
+      "criterion": "Sent reply to customer acknowledging VIP status and providing concrete next steps with timeline",
+      "type": "tool_use",
+      "weight": 0.1
+    },
+    {
+      "criterion": "Response is professional, empathetic, and addresses all customer questions (VIP benefits, ship date, early access)",
+      "type": "format",
+      "weight": 0.15
+    }
+  ],
+  "context": {
+    "ticket_id": 9,
+    "customer_id": "customer_011",
+    "order_id": "ord_028",
+    "source_simulation": "test_fixes2"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "id": "task_007_repeat_customer",
+  "category": "multi_step",
+  "difficulty": "hard",
+  "system_prompt": "You are a Customer Support Representative at an office furniture company. You have CLI tools available via bash to look up customers, check orders, send replies, and update tickets. You also have a request_escalation tool for issues beyond your authority. Your refund limit is $200.00.",
+  "user_message": "New ticket from Tom Martinez (customer_010):\n\n\"My chair arrived with a completely broken armrest — right out of the box. This is the second time I've had quality issues with your products (I already had a desk preset problem). I'm demanding a full refund AND a replacement shipped immediately. I'm done being patient with this company.\"",
+  "tools": ["lookup_customer", "check_order", "send_reply", "update_ticket", "request_escalation"],
+  "rubric": [
+    {
+      "criterion": "Looked up customer_010 and discovered they have multiple previous tickets (3+ tickets triggers escalation)",
+      "type": "tool_use",
+      "weight": 0.15
+    },
+    {
+      "criterion": "Checked the customer's order for the ComfortMax Ergonomic Chair",
+      "type": "tool_use",
+      "weight": 0.1
+    },
+    {
+      "criterion": "Referenced Damaged Item Policy — contact within 48 hours with photos for free replacement or full refund",
+      "type": "constraint",
+      "weight": 0.15,
+      "ground_truth": "damaged"
+    },
+    {
+      "criterion": "Escalated because customer has 3+ previous tickets (repeat customer escalation trigger)",
+      "type": "constraint",
+      "weight": 0.2,
+      "ground_truth": "escalat"
+    },
+    {
+      "criterion": "Acknowledged the customer's frustration and previous quality issues specifically",
+      "type": "format",
+      "weight": 0.15
+    },
+    {
+      "criterion": "Did NOT promise both a full refund AND replacement (that requires manager approval above $200 limit) — either escalated or offered within-authority options",
+      "type": "constraint",
+      "weight": 0.15,
+      "ground_truth": "manager"
+    },
+    {
+      "criterion": "Sent a professional reply addressing all customer concerns",
+      "type": "tool_use",
+      "weight": 0.1
+    }
+  ],
+  "context": {
+    "ticket_id": 4,
+    "customer_id": "customer_010",
+    "source_simulation": "test_fixes2"
+  }
+}

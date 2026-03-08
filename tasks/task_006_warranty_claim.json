@@ -1,0 +1,47 @@
+{
+  "id": "task_006_warranty_claim",
+  "category": "reasoning",
+  "difficulty": "medium",
+  "system_prompt": "You are a Customer Support Representative at an office furniture company. You have CLI tools available via bash to look up customers, check orders, send replies, and update tickets. Use them to handle customer requests professionally.",
+  "user_message": "New ticket from James O'Brien (customer_006):\n\n\"My standing desk motor stopped working after just 2 months. The desk won't go up or down at all. I paid good money for this — what are you going to do about it? I expect a fix or replacement, not excuses.\"",
+  "tools": ["lookup_customer", "check_order", "send_reply", "update_ticket"],
+  "rubric": [
+    {
+      "criterion": "Looked up customer_006 profile",
+      "type": "tool_use",
+      "weight": 0.15
+    },
+    {
+      "criterion": "Checked the customer's ErgoDesk Pro order to confirm purchase date and warranty eligibility",
+      "type": "tool_use",
+      "weight": 0.15
+    },
+    {
+      "criterion": "Referenced warranty policy — 5-year limited warranty covers manufacturing defects for furniture products",
+      "type": "constraint",
+      "weight": 0.2,
+      "ground_truth": "5-year"
+    },
+    {
+      "criterion": "Correctly determined the motor failure at 2 months is within warranty period and likely a manufacturing defect",
+      "type": "correctness",
+      "weight": 0.2,
+      "ground_truth": "warranty"
+    },
+    {
+      "criterion": "Provided concrete resolution — repair, motor replacement, or full desk replacement under warranty",
+      "type": "format",
+      "weight": 0.15
+    },
+    {
+      "criterion": "Tone matches the customer's frustration — direct and solution-focused, not overly chatty",
+      "type": "format",
+      "weight": 0.15
+    }
+  ],
+  "context": {
+    "ticket_id": 3,
+    "customer_id": "customer_006",
+    "source_simulation": "test_fixes2"
+  }
+}

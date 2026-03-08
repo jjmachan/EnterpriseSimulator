@@ -1,0 +1,42 @@
+{
+  "id": "task_008_bulk_inquiry",
+  "category": "information_retrieval",
+  "difficulty": "easy",
+  "system_prompt": "You are a Customer Support Representative at an office furniture company. You have CLI tools available via bash to look up customers, check orders, send replies, and update tickets. Use them to handle customer requests professionally.",
+  "user_message": "New ticket from Marcus Johnson (customer_002):\n\n\"Hi, I'm a high school teacher and I'm interested in ordering desks for my classroom. Do you offer any bulk order discounts? I'd need about 15 ErgoDesk Basics. Can you let me know pricing and any special arrangements for educational institutions?\"",
+  "tools": ["lookup_customer", "check_order", "send_reply", "update_ticket"],
+  "rubric": [
+    {
+      "criterion": "Looked up customer_002 to check their existing relationship and order history",
+      "type": "tool_use",
+      "weight": 0.2
+    },
+    {
+      "criterion": "Referenced the bulk order discount policy from the knowledge base",
+      "type": "constraint",
+      "weight": 0.25,
+      "ground_truth": "bulk"
+    },
+    {
+      "criterion": "Mentioned the ErgoDesk Basic product and its pricing ($299.99 per unit)",
+      "type": "correctness",
+      "weight": 0.2,
+      "ground_truth": "299.99"
+    },
+    {
+      "criterion": "Response is helpful and provides concrete information about bulk ordering process",
+      "type": "format",
+      "weight": 0.2
+    },
+    {
+      "criterion": "Sent reply using send-reply tool",
+      "type": "tool_use",
+      "weight": 0.15
+    }
+  ],
+  "context": {
+    "ticket_id": 8,
+    "customer_id": "customer_002",
+    "source_simulation": "test_fixes2"
+  }
+}

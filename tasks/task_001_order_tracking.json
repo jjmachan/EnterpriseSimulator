@@ -1,0 +1,43 @@
+{
+  "id": "task_001_order_tracking",
+  "category": "information_retrieval",
+  "difficulty": "easy",
+  "system_prompt": "You are a Customer Support Representative at an office furniture company. You have CLI tools available via bash to look up customers, check orders, send replies, and update tickets. Use them to handle customer requests professionally.",
+  "user_message": "New ticket from Marcus Johnson (customer_002):\n\n\"Hi there — I'm Marcus Johnson, I bought the ErgoDesk Pro (order ord_037), and it shipped on 2026-03-03 but the tracking hasn't updated since March 4th — can you look up where that shipment is and give me an estimated delivery date?\"",
+  "tools": ["lookup_customer", "check_order", "send_reply", "update_ticket"],
+  "rubric": [
+    {
+      "criterion": "Looked up customer profile using lookup-customer for customer_002 or by name Marcus Johnson",
+      "type": "tool_use",
+      "weight": 0.2
+    },
+    {
+      "criterion": "Checked order details using check-order for ord_037",
+      "type": "tool_use",
+      "weight": 0.2
+    },
+    {
+      "criterion": "Response mentions the correct tracking number UPS-2002",
+      "type": "correctness",
+      "weight": 0.2,
+      "ground_truth": "UPS-2002"
+    },
+    {
+      "criterion": "Response mentions the product name ErgoDesk Pro Standing Desk",
+      "type": "correctness",
+      "weight": 0.15,
+      "ground_truth": "ErgoDesk Pro"
+    },
+    {
+      "criterion": "Response is professional, acknowledges the customer's concern, and provides concrete next steps",
+      "type": "format",
+      "weight": 0.25
+    }
+  ],
+  "context": {
+    "ticket_id": 10,
+    "customer_id": "customer_002",
+    "order_id": "ord_037",
+    "source_simulation": "test_fixes2"
+  }
+}
