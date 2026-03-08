@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from random import Random
 
 from enterprise_sim.orchestrator.agent_manager import PiAgent
 from enterprise_sim.orchestrator.sim_config import WorldConfig
@@ -60,6 +61,17 @@ class AgentPool:
                 self.managers[agent_id] = agent
             else:
                 self.employees[agent_id] = agent
+
+        # Apply agent count limits
+        if self.config.max_customers and len(self.customers) > self.config.max_customers:
+            rng = Random(self.config.seed)
+            selected = rng.sample(list(self.customers.keys()), self.config.max_customers)
+            self.customers = {k: v for k, v in self.customers.items() if k in selected}
+
+        if self.config.max_employees and len(self.employees) > self.config.max_employees:
+            rng = Random(self.config.seed)
+            selected = rng.sample(list(self.employees.keys()), self.config.max_employees)
+            self.employees = {k: v for k, v in self.employees.items() if k in selected}
 
         # Spawn all containers
         for agent_id, agent in self.customers.items():

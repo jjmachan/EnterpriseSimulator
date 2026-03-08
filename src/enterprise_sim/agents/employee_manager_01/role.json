@@ -7,5 +7,5 @@
   "expertise": ["policy", "escalations", "refunds", "team-management"],
   "refund_limit": 5000.00,
   "can_escalate": false,
-  "direct_reports": ["employee_support_01"]
+  "direct_reports": ["employee_support_01", "employee_support_02", "employee_support_03"]
 }

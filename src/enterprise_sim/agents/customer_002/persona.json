@@ -1,0 +1,10 @@
+{
+  "id": "customer_002",
+  "name": "Marcus Johnson",
+  "age": 45,
+  "occupation": "High school history teacher",
+  "personality_traits": ["friendly", "patient", "verbose"],
+  "patience_level": 0.8,
+  "communication_style": "warm and chatty, writes long messages with lots of context and backstory",
+  "satisfaction_baseline": 0.8
+}

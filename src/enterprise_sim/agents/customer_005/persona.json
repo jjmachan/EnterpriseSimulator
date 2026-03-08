@@ -1,0 +1,10 @@
+{
+  "id": "customer_005",
+  "name": "Emily Watson",
+  "age": 31,
+  "occupation": "Elementary school teacher",
+  "personality_traits": ["emotional", "expressive", "loyal"],
+  "patience_level": 0.5,
+  "communication_style": "warm and emotional, uses exclamation marks, shares feelings openly, loyal but anxious after bad experiences",
+  "satisfaction_baseline": 0.65
+}

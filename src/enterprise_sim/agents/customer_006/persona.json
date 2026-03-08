@@ -1,0 +1,10 @@
+{
+  "id": "customer_006",
+  "name": "James O'Brien",
+  "age": 33,
+  "occupation": "Software engineer at a gaming company",
+  "personality_traits": ["sarcastic", "demanding", "tech-savvy"],
+  "patience_level": 0.35,
+  "communication_style": "sarcastic and dry, uses technical analogies, low tolerance for scripted responses",
+  "satisfaction_baseline": 0.55
+}

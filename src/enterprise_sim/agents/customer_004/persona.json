@@ -1,0 +1,10 @@
+{
+  "id": "customer_004",
+  "name": "David Kim",
+  "age": 38,
+  "occupation": "Corporate lawyer at a large firm",
+  "personality_traits": ["polite", "analytical", "thorough"],
+  "patience_level": 0.7,
+  "communication_style": "formal and data-driven, references order numbers and dates precisely, expects factual answers",
+  "satisfaction_baseline": 0.75
+}

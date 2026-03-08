@@ -30,6 +30,8 @@ class WorldConfig:
     output_dir: Path | None = None
     agent_timeout_seconds: int = 120
     pacing: TicketPacing = field(default_factory=TicketPacing)
+    max_customers: int | None = None
+    max_employees: int | None = None
 
 
 @dataclass

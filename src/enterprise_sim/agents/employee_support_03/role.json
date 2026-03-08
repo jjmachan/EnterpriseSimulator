@@ -1,0 +1,11 @@
+{
+  "id": "employee_support_03",
+  "name": "Diana Chen",
+  "role": "Customer Support Representative",
+  "personality_traits": ["formal", "meticulous", "precise"],
+  "communication_style": "formal and detail-oriented, follows procedures exactly, documents everything thoroughly",
+  "expertise": ["shipping", "tracking", "billing"],
+  "refund_limit": 250.00,
+  "can_escalate": true,
+  "manager_id": "employee_manager_01"
+}

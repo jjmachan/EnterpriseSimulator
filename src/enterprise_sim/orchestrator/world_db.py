@@ -450,9 +450,11 @@ def seed_db(db_path: Path | None = None) -> None:
 
     # --- Channels (internal messaging) ---
     channels = [
-        ("#support", "public", json.dumps(["employee_support_01", "employee_manager_01"])),
+        ("#support", "public", json.dumps(["employee_support_01", "employee_support_02", "employee_support_03", "employee_manager_01"])),
         ("#escalations", "public", json.dumps(["employee_manager_01"])),
         ("dm_support01_manager01", "dm", json.dumps(["employee_support_01", "employee_manager_01"])),
+        ("dm_support02_manager01", "dm", json.dumps(["employee_support_02", "employee_manager_01"])),
+        ("dm_support03_manager01", "dm", json.dumps(["employee_support_03", "employee_manager_01"])),
     ]
     conn.executemany(
         "INSERT INTO channels (id, type, members) VALUES (?,?,?)",

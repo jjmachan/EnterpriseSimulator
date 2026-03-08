@@ -144,7 +144,9 @@ def agent_chat(agent_id, provider, model):
 @click.option("--model", default="gpt-5-mini", help="Model name")
 @click.option("--seed", default=None, type=int, help="Random seed for reproducibility")
 @click.option("--output", default=None, type=click.Path(), help="Output directory path")
-def simulate(ticks, ticket_prob, provider, model, seed, output):
+@click.option("--max-customers", default=None, type=int, help="Max customer agents to use")
+@click.option("--max-employees", default=None, type=int, help="Max employee agents to use")
+def simulate(ticks, ticket_prob, provider, model, seed, output, max_customers, max_employees):
     """Run a multi-agent world simulation."""
     from enterprise_sim.orchestrator.sim_config import WorldConfig
     from enterprise_sim.orchestrator.simulation_engine import SimulationEngine
@@ -156,6 +158,8 @@ def simulate(ticks, ticket_prob, provider, model, seed, output):
         model=model,
         seed=seed,
         output_dir=Path(output) if output else None,
+        max_customers=max_customers,
+        max_employees=max_employees,
     )
     engine = SimulationEngine(config)
     engine.run()

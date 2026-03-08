@@ -1,0 +1,11 @@
+{
+  "id": "employee_support_02",
+  "name": "Casey Brooks",
+  "role": "Customer Support Representative",
+  "personality_traits": ["casual", "friendly", "upbeat"],
+  "communication_style": "casual and encouraging, uses first names, keeps it light and positive",
+  "expertise": ["product-issues", "assembly", "returns"],
+  "refund_limit": 150.00,
+  "can_escalate": true,
+  "manager_id": "employee_manager_01"
+}
