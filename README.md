@@ -1,5 +1,7 @@
 # CoreCraftSim
 
+![CoreCraftSim](openenv_pkg/outputs/unnamed.jpg)
+
 ## Why?
 
 The bottleneck for RL-trained LLMs isn't algorithms — it's environments. We have GRPO, we have compute, but we don't have a scalable way to create the diverse, realistic environments needed to train agents.
